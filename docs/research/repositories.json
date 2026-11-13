@@ -1,0 +1,175 @@
+{
+  "observed_on": "2026-11-12",
+  "scope": "Eight reference SHAs, metadata/README/selective code/licenses; no install or runtime validation; production release/digest selection pending",
+  "repositories": [
+    {
+      "id": "R01",
+      "repository": "mautic/mautic",
+      "url": "https://github.com/mautic/mautic",
+      "default_branch": "7.x",
+      "reference_sha": "229e8f7b0fcc0c1fd0013d51450a27afebd6f3b7",
+      "metadata_license": "NOASSERTION",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "060ecb7bf581e9ce69f91407a111d1f16d0e7775",
+          "read_scope": "first115 lines, selective"
+        },
+        {
+          "path": "LICENSE.txt",
+          "blob_sha": "86c32482c2f36e32fce4969f33193d58a47fdbdb",
+          "read_scope": "first80 lines; not complete legal review"
+        },
+        {
+          "path": "app/bundles/LeadBundle/Controller/Api/LeadApiController.php",
+          "blob_sha": "929744cb94dc51a6723d58df132f583256bbd600",
+          "read_scope": "first140 lines only"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R02",
+      "repository": "knadh/listmonk",
+      "url": "https://github.com/knadh/listmonk",
+      "default_branch": "master",
+      "reference_sha": "32078ede6d87c83f4948cc592c76bee91d629f0b",
+      "metadata_license": "AGPL-3.0",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "0be3f3ef7ede5c229b6c1668e2c6639394335265",
+          "read_scope": "first115 lines, selective"
+        },
+        {
+          "path": "cmd/campaigns.go",
+          "blob_sha": "2625e73a3ed3185bcb8da4e65d4dc3614bcf6fd0",
+          "read_scope": "first140 lines only"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R03",
+      "repository": "matomo-org/matomo",
+      "url": "https://github.com/matomo-org/matomo",
+      "default_branch": "6.x-dev",
+      "reference_sha": "9904b67102e104e0855b8ed3319f48afbb3f3279",
+      "metadata_license": "GPL-3.0",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "8dcee2296ffdb70465732af782a2869592b1a5ca",
+          "read_scope": "first115 lines, selective"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R04",
+      "repository": "plausible/analytics",
+      "url": "https://github.com/plausible/analytics",
+      "default_branch": "master",
+      "reference_sha": "f7b763dd41dd62362d102393180baaf155b7b294",
+      "metadata_license": "AGPL-3.0",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "6320d91e4b69b40da0c6a5433a258bf23e0f51ce",
+          "read_scope": "first115 lines, selective"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R05",
+      "repository": "growthbook/growthbook",
+      "url": "https://github.com/growthbook/growthbook",
+      "default_branch": "main",
+      "reference_sha": "db1968d435056b87a9485cc78a4af3d069539405",
+      "metadata_license": "NOASSERTION",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "84c64a4864784a6f0f172006db4733b740ed0912",
+          "read_scope": "first115 lines, selective"
+        },
+        {
+          "path": "LICENSE",
+          "blob_sha": "0a17616ab12bebe8061d8c101597ed590dbe2c5e",
+          "read_scope": "first80 lines; not complete legal review"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R06",
+      "repository": "google/meridian",
+      "url": "https://github.com/google/meridian",
+      "default_branch": "main",
+      "reference_sha": "f4ca39d406e1a86bd13d65fdf14166268044fd2d",
+      "metadata_license": "Apache-2.0",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "a3f1a4dfa3f7640a5ef8c30fcff2ff6165da9be2",
+          "read_scope": "first115 lines, selective"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R07",
+      "repository": "facebookexperimental/Robyn",
+      "url": "https://github.com/facebookexperimental/Robyn",
+      "default_branch": "accuracy/allocator_v2_fixes",
+      "reference_sha": "aab4226ed5e40196cdbd82ff7fbbff55e91e1f58",
+      "metadata_license": "MIT",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "6bdc463faac106b86906a140ea016a887088096b",
+          "read_scope": "first115 lines, selective"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    },
+    {
+      "id": "R08",
+      "repository": "PostHog/posthog",
+      "url": "https://github.com/PostHog/posthog",
+      "default_branch": "master",
+      "reference_sha": "ed7e1a3758ef04398d2af7a48de2c8bdc5061b47",
+      "metadata_license": "NOASSERTION",
+      "reference_is_production_pin": false,
+      "files": [
+        {
+          "path": "README.md",
+          "blob_sha": "bd1feadbfe3824e089c8651589f147c0d38aedea",
+          "read_scope": "first115 lines, selective"
+        },
+        {
+          "path": "LICENSE",
+          "blob_sha": "847d9d3def03458035447bdae131e1981e2a63da",
+          "read_scope": "first80 lines; not complete legal review"
+        }
+      ],
+      "installed": false,
+      "runtime_verified": false
+    }
+  ]
+}
