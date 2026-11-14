@@ -1,0 +1,5 @@
+# Handoff global Freebuff — Marketing
+
+Implementar las 42 campañas `docs/execution-program/campaigns/001..042/CAMPAIGN.md` secuencialmente, usando `docs/campaigns/campaign.json` como fuente estructurada y la campaña original como contexto. **No pedir diseño siguiente ni auditoría Astra/Codex entre fases.** Rama de implementación aislada; congelar SHA; no modificar padre, main, despliegues, cuentas reales, gasto publicitario ni envíos externos sin aprobación.
+
+En **cada documento CAMPAIGN.md** completar `Reporte de fase Freebuff`: estado, SHA, archivos creados/modificados, pruebas/comandos/fixtures, 2 gates, decisiones, desviaciones, deuda, errores y aprendizajes; añadir evidencia enlazada si el reporte crece. Continuar automáticamente. Para bloqueos de proveedor: registrar BLOCKED, seguir tareas independientes. Al terminar producir `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md` con matriz 42×7, 84 gates, dos tenants, E2E audiencia sintética→brief→journey→aprobación→envío sandbox→receipt→métricas, y entrega para Codex.
