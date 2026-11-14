@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: DONE
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: packages/contracts/src/envelope.ts, packages/core/src/authority.ts
+Tests ejecutados: 26 en `tests/campaigns/c01-c10.test.ts` (`npx vitest run tests/campaigns/c01-c10.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C02-G01 / PASS:** Padre y Mautic intentan emitir mismo mensaje: un intent o conflicto, no duplicado.
+- **MKT-C02-G02 / PASS:** Colaborador de marcaX intenta abrir proyectoY sin permiso.
+
+Desviaciones y ajustes de diseño: La autoridad se resolvió con roles y scopes; no se modelaron entitlements comerciales por plan.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Añadir matriz de entitlements cuando exista contrato de servicio firmado.

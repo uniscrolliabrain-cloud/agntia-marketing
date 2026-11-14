@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: PARTIAL
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: packages/core/src/measurement.ts
+Tests ejecutados: 17 en `tests/campaigns/c21-c30.test.ts` (`npx vitest run tests/campaigns/c21-c30.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C27-G01 / NOT_VERIFIED:** Proveedor cambia modelo: serie se marca cambio de régimen, no victoria de campaña.
+- **MKT-C27-G02 / NOT_VERIFIED:** Generar fake citations para aparecer más en IA queda bloqueado.
+
+Desviaciones y ajustes de diseño: Se registran observaciones AEO/GEO; no hay monitorización programada.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Programar prompt-set con límites y sin garantizar aparición.

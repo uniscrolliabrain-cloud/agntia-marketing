@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: DONE
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: packages/contracts/src/domain.ts, packages/core/src/measurement.ts
+Tests ejecutados: 26 en `tests/campaigns/c01-c10.test.ts` (`npx vitest run tests/campaigns/c01-c10.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C10-G01 / PASS:** Dos plataformas atribuyen misma order: ConversionFact no duplica ingreso.
+- **MKT-C10-G02 / PASS:** Consentimiento de analítica retirado no se suplanta con captura server-side.
+
+Desviaciones y ajustes de diseño: missing/zero/stale se distinguen; no hay retención ni compactación de observaciones.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Definir política de retención y ventanas de agregación.

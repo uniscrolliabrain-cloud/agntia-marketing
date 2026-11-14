@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: DONE
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: apps/api/src/auth.ts
+Tests ejecutados: 26 en `tests/campaigns/c01-c10.test.ts` (`npx vitest run tests/campaigns/c01-c10.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C03-G01 / PASS:** JWT de otro proyecto o tenant_idB en sesiónA se rechaza.
+- **MKT-C03-G02 / PASS:** Revocar membership con job en cola impide el siguiente efecto.
+
+Desviaciones y ajustes de diseño: La ruta JWKS está implementada pero sólo se probó HS256 local: la verificación contra Supabase real queda NOT_VERIFIED.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Probar RS256 con un proyecto Supabase de staging antes de producción.

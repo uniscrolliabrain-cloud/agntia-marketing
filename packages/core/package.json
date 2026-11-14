@@ -1,0 +1,15 @@
+{
+  "name": "@agntia/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agntia/contracts": "*",
+    "@agntia/adapters": "*",
+    "zod": "^3.24.1"
+  }
+}

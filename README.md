@@ -2,7 +2,30 @@
 
 Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental3/9 · 12 de noviembre de2026.
 
-**DOCUMENTATION_ONLY. No hay aplicación ni proveedores conectados. Las 42 campañas de implementación están NOT_STARTED; sus pruebas están NOT_EXECUTED.** El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
+**IMPLEMENTACIÓN EN RAMA. Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor.** El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. No hay proveedores conectados ni Postgres ejecutado: esas capacidades están deshabilitadas y se declaran `NOT_VERIFIED`, no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
+
+## Implementación
+
+```bash
+npm install
+npm run typecheck     # tsc estricto, sin emitir
+npm test              # 88 pruebas, 5 bloques de campañas
+npm run api:dev       # API Hono en :8787 (portal en /portal/)
+npm run worker:dev    # ciclo outbox → sandbox → receipt
+```
+
+| Ruta | Contenido |
+|---|---|
+| `packages/contracts` | envelope v1, DTO Zod estrictos, eventos y errores seguros |
+| `packages/core` | autoridad, aprobaciones, consentimiento, audiencias, FSM, outbox, medición |
+| `packages/adapters` | proveedores en stub deshabilitados + entrega sandbox local |
+| `packages/sdk` | cliente allowlist, 8 tools y bridge al padre |
+| `apps/api` | Hono con JWT de Supabase, PEP por capacidad e idempotencia |
+| `apps/worker` | outbox con fence, receipts y cierre de campaña |
+| `apps/portal` | portal responsive mínimo |
+| `db/migrations` | esquema Postgres y RLS forzada (escritos, **no ejecutados**) |
+
+Nada de esto envía correo real, publica landings, lanza anuncios, gasta dinero ni modifica el repositorio `agente`.
 
 El owner podrá conversar con el especialista por chat/visio Anam, preparar briefs y campañas, revisar audiencias y materiales, aprobar acciones y recibir reportes con fuentes. El servicio atenderá tanto clientes integrados en AgntiaPro como externos mediante portal propio. Los agentes canónicos viven en `/agente`; aquí operarán twins vinculados con mandato. No se crea una identidad agéntica independiente.
 

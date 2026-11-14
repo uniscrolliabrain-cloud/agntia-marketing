@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: PARTIAL
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: packages/core/src/campaigns.ts, packages/adapters/src/stubs.ts
+Tests ejecutados: 20 en `tests/campaigns/c11-c20.test.ts` (`npx vitest run tests/campaigns/c11-c20.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C12-G01 / NOT_VERIFIED:** Agregar contacto al segmento intentaría enviar por cron: gate bloquea ruta.
+- **MKT-C12-G02 / NOT_VERIFIED:** Timeout tras draft create no duplica campaña al reintentar.
+
+Desviaciones y ajustes de diseño: La autoridad de ejecución está implementada; el empuje de borradores a Mautic no existe.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Implementar draft push idempotente con receipt y reconciliación.

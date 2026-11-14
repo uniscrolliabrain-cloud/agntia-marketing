@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agntia Marketing · Portal</title>
+    <style>
+      :root { color-scheme: light dark; --bg:#0f1115; --panel:#171a21; --text:#e8eaf0; --muted:#9aa3b2; --accent:#6aa9ff; --border:#262b36; }
+      * { box-sizing: border-box; }
+      body { margin:0; font:15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+      header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
+      h1 { font-size:18px; margin:0; }
+      .tag { font-size:12px; color:var(--muted); border:1px solid var(--border); padding:2px 8px; border-radius:999px; }
+      main { padding:24px; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); max-width:1200px; }
+      section { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+      h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 12px; }
+      input, button { font:inherit; border-radius:8px; border:1px solid var(--border); background:#0d0f14; color:var(--text); padding:8px 10px; }
+      button { background:var(--accent); color:#06111f; border:0; cursor:pointer; font-weight:600; }
+      button.secondary { background:transparent; color:var(--text); border:1px solid var(--border); }
+      .row { display:flex; gap:8px; flex-wrap:wrap; }
+      pre { white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--muted); margin:12px 0 0; max-height:320px; overflow:auto; }
+      .warn { color:#ffcc66; font-size:13px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Agntia Marketing</h1>
+      <span class="tag">portal externo</span>
+      <span class="tag">sandbox</span>
+    </header>
+    <main>
+      <section>
+        <h2>Sesión</h2>
+        <p class="warn">El portal no sustituye la identidad: el token de Supabase lo emite el proveedor de auth. Anam es presencia, no autenticación.</p>
+        <div class="row">
+          <input id="token" type="password" placeholder="JWT de Supabase" style="flex:1 1 200px" />
+          <button id="save">Guardar</button>
+        </div>
+        <pre id="session">sin sesión</pre>
+      </section>
+      <section>
+        <h2>Contexto</h2>
+        <div class="row">
+          <button class="secondary" data-call="/v1/marketing/me">/me</button>
+          <button class="secondary" data-call="/v1/marketing/health">salud</button>
+          <button class="secondary" data-call="/v1/marketing/campaigns">campañas</button>
+          <button class="secondary" data-call="/v1/marketing/reports">reportes</button>
+        </div>
+        <pre id="out">—</pre>
+      </section>
+      <section>
+        <h2>Límites del portal</h2>
+        <ul style="margin:0; padding-left:18px; color:var(--muted); font-size:13px">
+          <li>Sin aprobación humana no hay envío ni publicación.</li>
+          <li>No hay envío autónomo ni compra de medios desde el portal.</li>
+          <li>Los proveedores reales están deshabilitados hasta verificar cuenta y licencia.</li>
+        </ul>
+      </section>
+    </main>
+    <script>
+      const out = document.getElementById('out');
+      const session = document.getElementById('session');
+      let token = sessionStorage.getItem('token') || '';
+
+      document.getElementById('save').addEventListener('click', () => {
+        token = document.getElementById('token').value.trim();
+        sessionStorage.setItem('token', token);
+        session.textContent = token ? 'token guardado en memoria de pestaña' : 'sin sesión';
+      });
+      session.textContent = token ? 'token guardado en memoria de pestaña' : 'sin sesión';
+
+      document.querySelectorAll('[data-call]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!token) { out.textContent = 'Falta el token.'; return; }
+          out.textContent = 'cargando…';
+          try {
+            const res = await fetch(btn.dataset.call, { headers: { authorization: `Bearer ${token}` } });
+            const body = await res.json();
+            out.textContent = JSON.stringify(body, null, 2);
+          } catch (err) {
+            out.textContent = `Error de red: ${String(err)}`;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

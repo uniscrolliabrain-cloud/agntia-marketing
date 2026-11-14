@@ -91,5 +91,18 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 **Rollback:** Deshabilitar capacidad/flag de la fase y detener nuevos efectos; conservar audit/links/intents/receipts. Restaurar solo con plan probado y reaplicar supresiones. No borrar mensajes/anuncios o historia para simular reversión.
 
-## Reporte de fase Freebuff (rellenar al terminar)
-Estado: PENDING. SHA: PENDING. Archivos creados/modificados: PENDING. Tests/comandos/fixtures: PENDING. Gates: PENDING. Desviaciones y ajustes de diseño: PENDING. Incidencias heredadas y deuda: PENDING. Recomendaciones para mejorar futuras campañas: PENDING. **No esperar auditoría Codex para seguir a la fase siguiente.**
+## Reporte de fase Freebuff
+
+Estado: PARTIAL
+SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
+Archivos creados/modificados: db/migrations/0001_schema.sql, db/migrations/0002_rls.sql, packages/core/src/store.ts
+Tests ejecutados: 26 en `tests/campaigns/c01-c10.test.ts` (`npx vitest run tests/campaigns/c01-c10.test.ts`); 0 fallos en el bloque.
+Gates:
+- **MKT-C06-G01 / NOT_VERIFIED:** INSERT/UPDATE de FK cross-tenant falla por API y DB con roles usados.
+- **MKT-C06-G02 / NOT_VERIFIED:** Caída en migración/commit no deja aprobación/intención parcial visible.
+
+Desviaciones y ajustes de diseño: Postgres no se pudo levantar: el esquema y RLS están escritos y testeados de forma estática, no ejecutados.
+
+Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
+
+Recomendaciones para mejorar futuras campañas: Ejecutar migraciones en Postgres 16 y probar aislamiento con dos roles reales.
