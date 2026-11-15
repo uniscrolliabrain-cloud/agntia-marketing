@@ -106,3 +106,15 @@ Desviaciones y ajustes de diseño: El SDK cubre 8 tools; no se publicó paquete 
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Publicar SDK versionado cuando el contrato esté congelado.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: DONE
+
+- `GET /v1/marketing/events` sirve eventos del tenant autenticado, con `limit` acotado a 200.
+- `GET /v1/marketing/conflicts` expone conflictos de responsable del tenant.
+- Ambas rutas exigen capability de lectura; no hay lectura cruzada entre tenants.
+
+Gates: G01 y G02 siguen PASS.
+
+Límite que sigue abierto: El bridge al padre sigue siendo eventos en memoria; no hay transporte real al bus del padre.

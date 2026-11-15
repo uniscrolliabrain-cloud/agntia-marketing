@@ -32,7 +32,7 @@ export interface Harness {
 let uniqueKey = 0;
 export const key = (label = 'k') => `${label}-${Date.now()}-${(uniqueKey += 1)}`;
 
-export async function makeHarness(options: { sandboxMode?: 'accept' | 'fail' | 'unknown'; contactPolicy?: { maxPerSubjectPerWindow: number; windowHours: number; quietHours?: { startUtcHour: number; endUtcHour: number } } } = {}): Promise<Harness> {
+export async function makeHarness(options: { sandboxMode?: 'accept' | 'fail' | 'unknown'; contactPolicy?: { maxPerSubjectPerWindow: number; windowHours: number; quietHours?: { startUtcHour: number; endUtcHour: number }; timezone?: string } } = {}): Promise<Harness> {
   let clock = new Date('2026-11-14T10:00:00Z');
   const ctx = createStore(() => clock);
   const advance = (ms: number) => {
@@ -64,7 +64,7 @@ export async function makeHarness(options: { sandboxMode?: 'accept' | 'fail' | '
   setContactPolicy(ctx, TENANT_A, {
     maxPerSubjectPerWindow: options.contactPolicy?.maxPerSubjectPerWindow ?? 5,
     windowHours: options.contactPolicy?.windowHours ?? 24,
-    timezone: 'UTC',
+    timezone: options.contactPolicy?.timezone ?? 'UTC',
     ...(options.contactPolicy?.quietHours ? { quietHours: options.contactPolicy.quietHours } : {}),
   });
 

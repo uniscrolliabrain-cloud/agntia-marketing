@@ -93,16 +93,31 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 ## Reporte de fase Freebuff
 
-Estado: PARTIAL
+Estado: PARTIAL (hardening 2026-11-15)
 SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
 Archivos creados/modificados: packages/core/src/campaigns.ts
 Tests ejecutados: 20 en `tests/campaigns/c11-c20.test.ts` (`npx vitest run tests/campaigns/c11-c20.test.ts`); 0 fallos en el bloque.
 Gates:
-- **MKT-C19-G01 / NOT_VERIFIED:** Ciclo de nurture sin máximo de pasos/reentrada se rechaza.
-- **MKT-C19-G02 / NOT_VERIFIED:** Baja en paso2 cancela siguientes efectos aunque run siga almacenado.
+- **MKT-C19-G01 / PASS:** Ciclo de nurture sin máximo de pasos/reentrada se rechaza.
+- **MKT-C19-G02 / PASS:** Baja en paso2 cancela siguientes efectos aunque run siga almacenado.
 
 Desviaciones y ajustes de diseño: Hay especificación y preview; no hay planificador ni inscripciones reales de journey.
 
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Implementar scheduler con approval por paso y reentry controlado.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: PARTIAL
+
+- Intents de journey con `journeyStepId` y `scheduledFor`; la inscripción crea un intent por paso y sujeto.
+- `approveJourney` congela revisión del grafo y población máxima; cambiar pasos invalida la aprobación (409 `approval_revision_mismatch`).
+- `enrollJourney` filtra elegibilidad y frecuencia en la inscripción y aplica `reentry: never`.
+- `leaseIntents` no reclama pasos cuyo plazo no venció; una baja posterior al commit cancela el paso antes de entregarlo.
+- Revocar o dejar caducar la aprobación cancela los pasos pendientes (`approval_expired`).
+- Validado que un ciclo de 21 pasos se rechaza (422) y que `after_days` sin plazo falla con `reentry_days_required`.
+
+Gates: G01 y G02 pasan a PASS con evidencia en `tests/campaigns/hardening.test.ts`.
+
+Límite que sigue abierto: Sigue en memoria: no hay planificador persistente ni ejecución Postgres del outbox. La aprobación es por revisión de journey, no por paso individual.

@@ -140,6 +140,8 @@ export interface OutboundIntentRecord {
   tenantId: string;
   operationKey: string;
   campaignId: string;
+  journeyStepId: string | null;
+  scheduledFor: string;
   subjectRef: string;
   channel: Channel;
   payloadHash: string;
@@ -260,6 +262,18 @@ export interface JourneyRecord {
   createdAt: string;
 }
 
+export interface JourneyEnrollmentRecord {
+  id: string;
+  tenantId: string;
+  journeyId: string;
+  approvalRef: string;
+  snapshotId: string;
+  state: 'active' | 'completed' | 'cancelled';
+  enrolledAt: string;
+  subjectRefs: string[];
+  intentIds: string[];
+}
+
 export interface LandingProposalRecord {
   id: string;
   tenantId: string;
@@ -295,6 +309,7 @@ export class MemoryStore {
   handoffs: HandoffRecord[] = [];
   contactPolicies: ContactPolicyRecord[] = [];
   journeys: JourneyRecord[] = [];
+  journeyEnrollments: JourneyEnrollmentRecord[] = [];
   landings: LandingProposalRecord[] = [];
   events: ServiceEvent[] = [];
   /** (tenantId|capability|idempotencyKey) → resultado ya producido. */
@@ -338,6 +353,7 @@ export class MemoryStore {
       privacyRequests: this.privacyRequests,
       handoffs: this.handoffs,
       journeys: this.journeys,
+      journeyEnrollments: this.journeyEnrollments,
       landings: this.landings,
     };
     const counts = Object.fromEntries(Object.entries(collections).map(([k, v]) => [k, v.length]));

@@ -13,7 +13,7 @@ import {
 import type { CampaignRecord, CampaignState, ClaimRecord, CreativeRecord, Ctx } from './store';
 import type { Principal } from './authority';
 import { createApproval, verifyApproval } from './authority';
-import { assertSnapshotUsable, checkFrequency, evaluateEligibility, previewAudience } from './consent';
+import { assertSnapshotUsable, checkFrequency, evaluateEligibility, freezeAudience, previewAudience } from './consent';
 import { addMoney, compareMoney, newId, sha256 } from './util';
 
 // ── Brief y estrategia (MKT-C17) ───────────────────────────────────────────
@@ -378,6 +378,8 @@ export function commitCampaign(
       tenantId: principal.tenantId,
       operationKey: `${campaignId}:${campaign.revision}:${subjectRef}`,
       campaignId,
+      journeyStepId: null,
+      scheduledFor: ctx.now().toISOString(),
       subjectRef,
       channel: campaign.channel,
       payloadHash,
@@ -505,4 +507,129 @@ export function listLandings(ctx: Ctx, tenantId: string) {
   return ctx.store.landings
     .filter((l) => l.tenantId === tenantId)
     .map(({ proposedHtml: _html, ...rest }) => rest);
+}
+
+
+// ── Inscripción de journeys (MKT-C19) ──────────────────────────────────────
+
+export function journeyRevisionHash(journey: { id: string; version: number; steps: unknown; audienceRule: unknown }): string {
+  return sha256({ journeyId: journey.id, version: journey.version, steps: journey.steps, audienceRule: journey.audienceRule });
+}
+
+/**
+ * La aprobación de un journey congela la revisión del grafo y la población
+ * máxima. Cambiar pasos o audiencia exige nueva aprobación.
+ */
+export function approveJourney(ctx: Ctx, principal: Principal, journeyId: string, expiresAt: string) {
+  const journey = ctx.store.journeys.find((j) => j.tenantId === principal.tenantId && j.id === journeyId);
+  if (!journey) throw new MarketingError('NOT_FOUND', 'journey_not_found');
+  const snapshot = freezeAudience(ctx, principal.tenantId, journey.audienceRule);
+  const revisionHash = journeyRevisionHash(journey);
+  const approval = createApproval(ctx, principal, {
+    revisionHash,
+    audienceMaxHash: snapshot.membersHash,
+    purpose: journey.audienceRule.purpose,
+    channel: journey.steps[0]!.channel,
+    costCeiling: { amount: '0.00', currency: 'EUR' },
+    expiresAt,
+  });
+  return {
+    approvalRef: approval.approvalRef,
+    snapshotId: snapshot.id,
+    revisionHash,
+    audienceMaxHash: snapshot.membersHash,
+    eligible: snapshot.eligibleCount,
+    expiresAt: approval.expiresAt,
+  };
+}
+
+/**
+ * Inscribe a la población congelada y programa cada paso con su retardo. No
+ * envía nada: crea intents `queued` con `scheduledFor`. El worker sólo puede
+ * reclamar los que ya vencieron, y revalida elegibilidad y frecuencia antes de
+ * cada entrega.
+ */
+export function enrollJourney(ctx: Ctx, principal: Principal, journeyId: string, approvalRef: string) {
+  const journey = ctx.store.journeys.find((j) => j.tenantId === principal.tenantId && j.id === journeyId);
+  if (!journey) throw new MarketingError('NOT_FOUND', 'journey_not_found');
+  const approval = ctx.store.approvals.find((a) => a.tenantId === principal.tenantId && a.approvalRef === approvalRef);
+  if (!approval) throw new MarketingError('FORBIDDEN', 'approval_not_found');
+  const snapshot = ctx.store.snapshots.find((snap) => snap.tenantId === principal.tenantId && snap.membersHash === approval.audienceMaxHash);
+  if (!snapshot) throw new MarketingError('CONFLICT', 'approval_snapshot_missing');
+
+  verifyApproval(ctx, principal.tenantId, approvalRef, {
+    revisionHash: journeyRevisionHash(journey),
+    audienceMaxHash: snapshot.membersHash,
+    purpose: journey.audienceRule.purpose,
+    channel: journey.steps[0]!.channel,
+    requiredBudget: { amount: '0.00', currency: 'EUR' },
+  });
+  assertSnapshotUsable(ctx, principal.tenantId, snapshot.id);
+
+  const frequency = checkFrequency(ctx, principal.tenantId, snapshot.memberRefs, journey.steps[0]!.channel);
+  const intentIds: string[] = [];
+  const enrolled: string[] = [];
+  const skipped: Array<{ subjectRef: string; reasonCodes: string[] }> = [];
+  const now = ctx.now().getTime();
+
+  for (const subjectRef of snapshot.memberRefs) {
+    const prior = ctx.store.journeyEnrollments.find(
+      (e) => e.tenantId === principal.tenantId && e.journeyId === journeyId && e.subjectRefs.includes(subjectRef) && e.state === 'active',
+    );
+    if (prior && journey.reentry === 'never') {
+      skipped.push({ subjectRef, reasonCodes: ['already_enrolled'] });
+      continue;
+    }
+    const decision = evaluateEligibility(ctx, principal.tenantId, subjectRef, journey.audienceRule.purpose, journey.steps[0]!.channel);
+    if (decision.state !== 'eligible') {
+      skipped.push({ subjectRef, reasonCodes: decision.reasonCodes });
+      continue;
+    }
+    const freq = frequency.find((f) => f.subjectRef === subjectRef);
+    if (!freq?.allowed) {
+      skipped.push({ subjectRef, reasonCodes: freq?.reasonCodes ?? ['frequency_unknown'] });
+      continue;
+    }
+    enrolled.push(subjectRef);
+    for (const step of journey.steps) {
+      const intent = {
+        id: newId('int'),
+        tenantId: principal.tenantId,
+        operationKey: `journey:${journeyId}:v${journey.version}:${step.stepId}:${subjectRef}`,
+        campaignId: journeyId,
+        journeyStepId: step.stepId,
+        scheduledFor: new Date(now + step.delayHours * 3_600_000).toISOString(),
+        subjectRef,
+        channel: step.channel,
+        payloadHash: sha256({ journeyId, step: step.stepId, templateRef: step.templateRef }),
+        approvalRef,
+        audienceSnapshotId: snapshot.id,
+        eligibilityRef: `elig_${subjectRef}_${decision.suppressionVersion}`,
+        state: 'queued' as const,
+        leaseFence: 0,
+        attempts: 0,
+        remoteRefs: [],
+        lastError: null,
+        reconciliationRequired: false,
+        createdAt: ctx.now().toISOString(),
+        updatedAt: ctx.now().toISOString(),
+      };
+      ctx.store.intents.push(intent);
+      intentIds.push(intent.id);
+    }
+  }
+
+  const enrollment = {
+    id: newId('enr'),
+    tenantId: principal.tenantId,
+    journeyId,
+    approvalRef,
+    snapshotId: snapshot.id,
+    state: (enrolled.length > 0 ? 'active' : 'cancelled') as 'active' | 'cancelled',
+    enrolledAt: ctx.now().toISOString(),
+    subjectRefs: enrolled,
+    intentIds,
+  };
+  ctx.store.journeyEnrollments.push(enrollment);
+  return { enrollmentId: enrollment.id, enrolled: enrolled.length, intents: intentIds.length, skipped };
 }

@@ -106,3 +106,15 @@ Desviaciones y ajustes de diseño: La frecuencia se evalúa en UTC; el campo tim
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Aplicar zona IANA al cálculo de horas de silencio.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: DONE
+
+- `localHour()` resuelve la hora local con zona IANA vía `Intl` y cae a UTC ante zona inválida.
+- Las horas de silencio se evalúan en la zona del tenant, no en UTC (Madrid bloquea a las 10:00Z, UTC no).
+- Se mantiene el tope por ventana y la competición por el último slot de contacto.
+
+Gates: G01 y G02 siguen PASS; se añade cobertura de zona horaria.
+
+Límite que sigue abierto: La zona proviene de `contactPolicy`; no hay todavía sincronización con la zona del contacto.

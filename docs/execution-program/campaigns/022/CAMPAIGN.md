@@ -106,3 +106,15 @@ Desviaciones y ajustes de diseño: El outbox es en memoria; la transacción Post
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Probar concurrencia de dos workers sobre Postgres real.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: DONE
+
+- `leaseIntents` revalida en el instante del efecto: aprobación vigente y no revocada, elegibilidad/supresión y límite de frecuencia.
+- Los intents con `scheduledFor` futuro no se reclaman; los no elegibles se cancelan con motivo auditable (`intent.cancelled_at_lease`).
+- El settle de campaña sólo se aplica a intents que pertenecen a una campaña, no a journeys.
+
+Gates: G01 y G02 siguen PASS; la revalidación añade la garantía de que una revocación posterior al commit no produce efecto.
+
+Límite que sigue abierto: El outbox sigue en memoria: `FOR UPDATE SKIP LOCKED` y la transacción Postgres no se han ejecutado.

@@ -151,6 +151,38 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     return { accepted: true as const, handoff: record };
   }
 
+  function respondHandoff(principal: Principal, handoffId: string, decision: 'accept' | 'reject', note?: string) {
+    const handoff = ctx.store.handoffs.find((h) => h.tenantId === principal.tenantId && h.id === handoffId);
+    if (!handoff) throw new MarketingError('NOT_FOUND', 'handoff_not_found');
+    if (handoff.state !== 'proposed') throw new MarketingError('CONFLICT', `handoff_${handoff.state}`);
+    handoff.state = decision === 'accept' ? 'accepted' : 'rejected';
+    if (note) handoff.acceptance = `${handoff.acceptance} · ${note}`.slice(0, 300);
+    ctx.store.auditLog(
+      { tenantId: principal.tenantId, actorId: principal.actorId, action: `handoff.${handoff.state}`, detail: handoff.id },
+      ctx.now().toISOString(),
+    );
+    return handoff;
+  }
+
+  /** Un handoff sin ACK caduca: no se interpreta como éxito. */
+  function expireHandoffs(principal: Principal, olderThanMinutes = 1440) {
+    const cutoff = ctx.now().getTime() - olderThanMinutes * 60_000;
+    let expired = 0;
+    for (const handoff of ctx.store.handoffs) {
+      if (handoff.tenantId !== principal.tenantId) continue;
+      if (handoff.state !== 'proposed') continue;
+      if (Date.parse(handoff.createdAt) > cutoff) continue;
+      handoff.state = 'rejected';
+      handoff.acceptance = `${handoff.acceptance} · expirado sin ACK`.slice(0, 300);
+      expired += 1;
+    }
+    return { expired };
+  }
+
+  function listConflicts(principal: Principal) {
+    return ctx.store.handoffs.filter((h) => h.tenantId === principal.tenantId && h.state === 'conflict');
+  }
+
   // ── Coste y observabilidad (MKT-C38) ─────────────────────────────────────
   function estimateServiceCost(input: { contacts: number; emails: number; aiCalls: number; reports: number }) {
     const unit = { contact: 0.0004, email: 0.0009, aiCall: 0.012, report: 0.05 };
@@ -223,6 +255,9 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     submitPrivacyRequest,
     fulfilPrivacyRequest,
     proposeHandoff,
+    respondHandoff,
+    expireHandoffs,
+    listConflicts,
     estimateServiceCost,
     serviceHealth,
     openAdvisorSession,

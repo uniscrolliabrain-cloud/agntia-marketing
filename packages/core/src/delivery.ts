@@ -9,7 +9,7 @@ import type { AdapterRegistry, SendOutcome } from '@agntia/adapters';
 import type { ConnectionRecord, Ctx, OutboundIntentRecord } from './store';
 import type { Principal } from './authority';
 import { transition } from './campaigns';
-import { recordContact } from './consent';
+import { checkFrequency, evaluateEligibility, recordContact } from './consent';
 import { newId, sha256 } from './util';
 
 // ── Conexiones (MKT-C08) ───────────────────────────────────────────────────
@@ -84,7 +84,50 @@ export function leaseIntents(ctx: Ctx, tenantId: string, workerId: string, limit
   for (const intent of ctx.store.intents) {
     if (intent.tenantId !== tenantId) continue;
     if (intent.state !== 'queued') continue;
+    if (Date.parse(intent.scheduledFor) > ctx.now().getTime()) continue;
     if (leased.length >= limit) break;
+
+    // La aprobación se revisa en el momento del efecto: revocarla o dejarla
+    // caducar cancela lo que aún no se ha entregado.
+    const approval = ctx.store.approvals.find((a) => a.tenantId === tenantId && a.approvalRef === intent.approvalRef);
+    if (!approval || approval.revokedAt || Date.parse(approval.expiresAt) <= ctx.now().getTime()) {
+      intent.state = 'cancelled';
+      intent.lastError = approval ? 'approval_expired' : 'approval_missing';
+      intent.updatedAt = now;
+      ctx.store.auditLog(
+        { tenantId, actorId: workerId, action: 'intent.cancelled_at_lease', detail: `${intent.id}:${intent.lastError}` },
+        now,
+      );
+      continue;
+    }
+
+    // Revalidación en el momento del efecto: una baja o un cambio de consentimiento
+    // posterior al commit invalida la entrega, aunque exista aprobación.
+    const snapshot = ctx.store.snapshots.find((s) => s.tenantId === tenantId && s.id === intent.audienceSnapshotId);
+    const purpose = snapshot?.rule.purpose ?? 'marketing';
+    const decision = evaluateEligibility(ctx, tenantId, intent.subjectRef, purpose, intent.channel);
+    if (decision.state !== 'eligible') {
+      intent.state = 'cancelled';
+      intent.lastError = `ineligible:${decision.reasonCodes.join(',')}`;
+      intent.updatedAt = now;
+      ctx.store.auditLog(
+        { tenantId, actorId: workerId, action: 'intent.cancelled_at_lease', detail: `${intent.id}:${decision.reasonCodes.join(',')}` },
+        now,
+      );
+      continue;
+    }
+    const frequency = checkFrequency(ctx, tenantId, [intent.subjectRef], intent.channel)[0];
+    if (frequency && !frequency.allowed) {
+      intent.state = 'cancelled';
+      intent.lastError = `frequency:${frequency.reasonCodes.join(',')}`;
+      intent.updatedAt = now;
+      ctx.store.auditLog(
+        { tenantId, actorId: workerId, action: 'intent.cancelled_at_lease', detail: `${intent.id}:${frequency.reasonCodes.join(',')}` },
+        now,
+      );
+      continue;
+    }
+
     intent.leaseFence += 1;
     intent.state = 'leased';
     intent.attempts += 1;

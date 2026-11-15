@@ -11,7 +11,7 @@
 | DONE | 23 |
 | PARTIAL | 15 |
 | BLOCKED | 4 |
-| Pruebas automatizadas | 88 (5 archivos) |
+| Pruebas automatizadas | 101 (6 archivos) |
 | Typecheck | limpio (`tsc --noEmit`) |
 
 `PARTIAL` no es un fallo: el código y sus pruebas existen, pero la parte que
@@ -87,7 +87,7 @@ podido verificar en esta máquina. Se declara en vez de simularse.
 - **Proveedores reales:** Mautic, Listmonk, Matomo, Plausible, PostHog, GA4, Search Console, GrowthBook, Ads y Anam están deshabilitados. Un stub no verifica la API.
 - **Envío de correo real:** sólo sandbox local con destinatarios `sandbox_*`.
 - **Publicación de landings y anuncios:** no hay despliegue ni gasto; el techo de pruebas es 50 EUR/día y nunca se envía.
-- **Journeys:** especificación y preview, sin planificador ni inscripciones.
+- **Journeys:** inscripción y programación por paso implementadas y probadas en memoria; falta el planificador persistente sobre Postgres. La aprobación es por revisión de journey, no por paso individual.
 - **MMM:** reparto descriptivo del gasto, sin Meridian/Robyn ni ROI causal.
 - **Anam:** sesión simulada; no hay video ni token real.
 
@@ -96,8 +96,19 @@ podido verificar en esta máquina. Se declara en vez de simularse.
 1. Ejecutar Postgres y probar RLS con dos roles reales (C06/C22).
 2. Verificar JWT RS256 contra un proyecto Supabase de staging (C03).
 3. Elegir un proveedor de email real y verificar edición/licencia (C11–C14).
-4. Implementar scheduler de journeys con approval por paso (C19).
+4. Persistir el outbox de journeys y el scheduler en Postgres, con approval por paso (C19/C22).
 5. Sustituir el reparto descriptivo por un MMM validado cuando haya 52+ semanas (C32).
+
+## Hardening 2026-11-15
+
+Segunda pasada sobre el código ya entregado, sin rehacer campañas:
+
+- Journeys: aprobación que congela revisión y audiencia, inscripción, intents programados y `reentry`.
+- Revalidación en el instante del efecto: aprobación vigente, supresión y frecuencia.
+- Horas de silencio por zona IANA en lugar de UTC.
+- FSM de handoff con aceptación, rechazo y caducidad sin ACK; endpoint de conflictos.
+- Rate limit por tenant y minuto; endpoints `GET /events` y `GET /conflicts`.
+- 13 pruebas nuevas en `tests/campaigns/hardening.test.ts` (101 en total). `npx tsc --noEmit` limpio.
 
 ## Revisión pendiente
 

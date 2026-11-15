@@ -21,6 +21,7 @@ import {
   acceptBrief,
   addClaim,
   approveCampaign,
+  approveJourney,
   assertSnapshotUsable,
   auditSeo,
   buildBudgetScenario,
@@ -30,6 +31,7 @@ import {
   createCampaign,
   createCreative,
   createJourney,
+  enrollJourney,
   createMeasurementClaim,
   createService,
   createStore,
@@ -104,6 +106,10 @@ export function createApp(deps: AppDeps) {
     return value;
   };
 
+  // Rate limit por tenant y minuto sobre operaciones de escritura (MKT-C38).
+  const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE ?? 120);
+  const rateWindow = new Map<string, number>();
+
   app.get('/healthz', (c) => c.json({ ok: true, service: 'agntia-marketing', policy: ctx.policyVersion }));
 
   app.use('/v1/marketing/*', async (c, next) => {
@@ -122,6 +128,10 @@ export function createApp(deps: AppDeps) {
   ) {
     return async (c: Context) => {
       const principal = resolvePrincipal(ctx, c.get('jwt') as Vars['jwt'], capability);
+      const windowKey = `${principal.tenantId}:${Math.floor(ctx.now().getTime() / 60_000)}`;
+      const used = rateWindow.get(windowKey) ?? 0;
+      if (used >= RATE_LIMIT_PER_MINUTE) throw new MarketingError('RATE_LIMITED', 'tenant_rate_limit');
+      rateWindow.set(windowKey, used + 1);
       const key = idempotency(c);
       const raw = await c.req.json().catch(() => ({}));
       const body = schema.parse(raw);
@@ -330,6 +340,30 @@ export function createApp(deps: AppDeps) {
     ),
   );
 
+
+  app.post(
+    '/v1/marketing/journeys/:id/approve',
+    mutate(
+      'marketing.journey.enroll',
+      z.object({ expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/) }).strict(),
+      (p, body, c) => approveJourney(ctx, p, param(c), body.expiresAt),
+    ),
+  );
+
+  app.post(
+    '/v1/marketing/journeys/:id/enrollments',
+    mutate('marketing.journey.enroll', z.object({ approvalRef: z.string().min(1) }).strict(), (p, body, c) =>
+      enrollJourney(ctx, p, param(c), body.approvalRef),
+    ),
+  );
+
+  app.get(
+    '/v1/marketing/journeys/:id/enrollments',
+    read('marketing.journey.preview', (p, c) =>
+      ctx.store.journeyEnrollments.filter((e) => e.tenantId === p.tenantId && e.journeyId === param(c)),
+    ),
+  );
+
   const LandingInput = z.object({ pageRef: z.string().min(1).max(300), currentHtml: z.string().max(200_000), proposedHtml: z.string().max(200_000) }).strict();
   app.post('/v1/marketing/landing-previews', mutate('marketing.landing.propose', LandingInput, (p, body) => proposeLanding(ctx, p, body)));
   app.post(
@@ -452,6 +486,28 @@ export function createApp(deps: AppDeps) {
   );
   app.post('/v1/marketing/handoffs', mutate('marketing.campaign.preview', HandoffSchema, (p, body) => service.proposeHandoff(p, body)));
   app.post(
+    '/v1/marketing/handoffs/:id/respond',
+    mutate(
+      'marketing.campaign.preview',
+      z.object({ decision: z.enum(['accept', 'reject']), note: z.string().max(300).optional() }).strict(),
+      (p, body, c) => service.respondHandoff(p, param(c), body.decision, body.note),
+    ),
+  );
+  app.post(
+    '/v1/marketing/handoffs/expire',
+    mutate('marketing.campaign.preview', z.object({ olderThanMinutes: z.number().int().min(5).max(43_200).optional() }).strict(), (p, body) =>
+      service.expireHandoffs(p, body.olderThanMinutes ?? 1440),
+    ),
+  );
+  app.get('/v1/marketing/conflicts', read('marketing.campaign.preview', (p) => service.listConflicts(p)));
+  app.get(
+    '/v1/marketing/events',
+    read('marketing.context.read', (p, c) => {
+      const limit = Math.min(Number(c.req.query('limit') ?? 50), 200);
+      return ctx.store.events.filter((e) => e.tenantId === p.tenantId).slice(-limit);
+    }),
+  );
+  app.post(
     '/v1/marketing/advisor-sessions',
     mutate('marketing.advisor.session', z.object({ scope: z.string().min(1).max(300) }).strict(), (p, body) => service.openAdvisorSession(p, body.scope)),
   );
@@ -480,7 +536,9 @@ export function createApp(deps: AppDeps) {
         results.push(await deliverIntent(ctx, registry, intent.id, intent.fence, body.provider));
       }
       for (const campaignId of new Set(leased.map((i) => i.campaignId))) {
-        settleCampaign(ctx, p.tenantId, campaignId);
+        // Los intents de journey no son campañas: sólo se liquida lo que lo es.
+        const isCampaign = ctx.store.campaigns.some((camp) => camp.tenantId === p.tenantId && camp.id === campaignId);
+        if (isCampaign) settleCampaign(ctx, p.tenantId, campaignId);
       }
       return results;
     }),

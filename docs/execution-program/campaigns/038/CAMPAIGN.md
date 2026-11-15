@@ -106,3 +106,15 @@ Desviaciones y ajustes de diseño: Coste con precios internos simulados; no hay 
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Sustituir por precios reales y medir coste por tenant.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: PARTIAL
+
+- Rate limit por tenant y minuto sobre toda mutación autenticada (`429 RATE_LIMITED`), configurable con `RATE_LIMIT_PER_MINUTE`.
+- Health, coste estimado y auditoría por tenant se mantienen.
+- El contador es por proceso: con varias instancias el límite efectivo se multiplica.
+
+Gates: G01 y G02 siguen NOT_VERIFIED: exigen facturación real y dos instancias con carga.
+
+Límite que sigue abierto: Falta un contador compartido (Redis/Postgres) y pruebas de dos tenants bajo carga real.

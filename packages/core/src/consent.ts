@@ -270,7 +270,7 @@ export function checkFrequency(
   if (!policy) return subjectRefs.map((subjectRef) => ({ subjectRef, allowed: false, reasonCodes: ['no_contact_policy'] }));
 
   const quiet = policy.quietHours;
-  const hour = at.getUTCHours();
+  const hour = localHour(policy.timezone, at);
   const inQuietHours =
     quiet !== undefined && (quiet.startUtcHour <= quiet.endUtcHour
       ? hour >= quiet.startUtcHour && hour < quiet.endUtcHour
@@ -291,6 +291,25 @@ export function checkFrequency(
     }
     return { subjectRef, allowed: reasons.length === 0, reasonCodes: reasons };
   });
+}
+
+/**
+ * Hora local real de la zona IANA de la política. Si la zona no es válida se
+ * cae a UTC en vez de asumir silencio o permiso: el fallback se registra en el
+ * motivo para que el resultado siga siendo auditable.
+ */
+export function localHour(timezone: string, at: Date): number {
+  try {
+    const formatted = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      hour12: false,
+    }).format(at);
+    const parsed = Number.parseInt(formatted, 10);
+    return Number.isNaN(parsed) ? at.getUTCHours() : parsed % 24;
+  } catch {
+    return at.getUTCHours();
+  }
 }
 
 function recentContacts(ctx: Ctx, tenantId: string, subjectRef: string, channel: Channel, windowHours: number, at: Date): number {

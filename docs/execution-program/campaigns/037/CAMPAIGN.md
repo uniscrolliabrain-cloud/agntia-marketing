@@ -106,3 +106,15 @@ Desviaciones y ajustes de diseño: Se detectan conflictos de responsable; no hay
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Completar aceptación/rechazo y timeouts entre servicios.
+
+## Hardening 2026-11-15 (2ª pasada)
+
+Estado tras hardening: DONE
+
+- FSM de handoff: `POST /handoffs/:id/respond` acepta o rechaza, y una segunda respuesta devuelve 409.
+- `POST /handoffs/expire` caduca propuestas sin ACK y las marca `rejected`, nunca éxito.
+- `GET /conflicts` lista los handoffs en estado `conflict` creados al detectar dos responsables del mismo recurso.
+
+Gates: G01 y G02 siguen PASS; se añade la caducidad sin ACK.
+
+Límite que sigue abierto: Los ACK son locales al servicio; no hay callback firmado del servicio hermano.

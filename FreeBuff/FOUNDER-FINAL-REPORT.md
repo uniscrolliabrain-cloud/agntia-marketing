@@ -1,0 +1,90 @@
+# Informe al founder · `agntia-marketing`
+
+## 1. Estado inicial y SHA
+
+- Repositorio asignado: `uniscrolliabrain-cloud/agntia-marketing` (identificado por la conversación y el remoto).
+- Base documental: `9285dc2`. `origin/main` avanzó a `f02f01a` durante el trabajo; se hizo merge limpio en la rama de trabajo.
+- Implementación: `eeacf9d`; merge de `main`: `f26c7f5`; hardening posterior sin commit al cerrar este informe.
+- Padre `agente` en `54b8d5407a8576459448c4d059a877297d18ca7a`: leído, no modificado.
+- Sandbox restaurado sin `node_modules`: se reinstalaron dependencias antes del baseline.
+
+## 2. Campañas realizadas
+
+42 de 42 con código, pruebas y reporte de fase propio. Estado honesto:
+23 DONE, 15 PARTIAL, 4 BLOCKED. Los `PARTIAL` dependen de
+Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
+
+## 3. Código reutilizado y código nuevo
+
+- **Reutilizado:** contratos, arquitectura, campañas, guardrails y handoff ya presentes en el repo y en `origin/main`.
+- **Nuevo:** monorepo npm workspaces con `contracts`, `core`, `adapters`, `sdk`, `apps/api`, `apps/worker`, `apps/portal`, migraciones SQL, tests y documentación de evidencia.
+- **No se reescribió** ningún módulo existente ni se creó un proyecto paralelo.
+
+## 4. Archivos y módulos finales
+
+- `packages/contracts`: esquemas Zod, envelope, errores, capacidades.
+- `packages/core`: autoridad, consentimiento, campañas, journeys, entrega/outbox, medición, presupuesto, privacidad, servicio.
+- `packages/adapters`: stubs `disabled` + `SandboxEmailAdapter`.
+- `packages/sdk`: 8 tools allowlist.
+- `apps/api`: Hono, JWT, rate limit, rutas y portal.
+- `apps/worker`: bucle de entrega sandbox.
+- `db/migrations`: esquema con RLS (escrito, no ejecutado).
+- `tests/`: 101 pruebas en 6 archivos.
+- `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
+
+## 5. Tests y resultados verificables
+
+```
+npx tsc -p tsconfig.json --noEmit   # exit 0
+npx vitest run                      # 101 passed (101)
+```
+
+Smoke manual: `/healthz` 200 JSON, `/portal/` 200 HTML, `/v1/marketing/me` sin
+token 401 `AUTH_REQUIRED`.
+
+## 6. Gates superados y pendientes
+
+84 gates del programa: 48 PASS, 36 NOT_VERIFIED. Los pendientes se
+concentran en Postgres/RLS, proveedores reales, facturación y despliegue, y están
+enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
+
+## 7. Integraciones reales y simuladas
+
+- **Real y verificado:** verificación JWT (HS256 de test) y entrega de email al sandbox local.
+- **Simulado:** Mautic, Listmonk, Matomo, Plausible, PostHog, GA4, GSC, GrowthBook, Ads, Anam.
+- **Escrito, no ejecutado:** Postgres con RLS y transacciones del outbox.
+
+## 8. Riesgos y deuda técnica
+
+1. Persistencia en memoria: reiniciar el proceso pierde intents y auditoría.
+2. Sin RLS ejecutado no hay prueba de aislamiento a nivel de base de datos.
+3. Rate limit por proceso, no distribuido.
+4. Aprobación de journey por revisión completa, no por paso.
+5. Sin firma en los ACK de handoff entre servicios.
+6. CI definido pero no ejecutado en GitHub.
+
+## 9. Preparación para Doppler
+
+`FreeBuff/DOPPLER-READY.md`: seis variables actuales, mapa de las futuras,
+rotación, permisos, arranque con `doppler run` y respuesta a incidente. Sin
+valores y sin crear el proyecto: eso requiere tu autorización.
+
+## 10. Propuesta de integración con el padre
+
+`FreeBuff/INTEGRATION-AGENTE-PROPOSAL.md`: superficie HTTP, 30 capacidades,
+twins, eventos, mandatos, dependencias, pruebas conjuntas, rollback y seis
+cambios propuestos en `agente`. Ninguno aplicado.
+
+## 11. Estado de CI y PR
+
+- Workflow `.github/workflows/ci.yml` con install, typecheck y test.
+- Rama `feat/marketing-42-campaigns`; **sin push y sin PR**.
+- El merge a `main` queda a tu autorización expresa.
+
+## 12. Recomendación de siguiente paso
+
+1. Revisar la matriz y los 84 gates; decidir qué `PARTIAL` aceptas como deuda.
+2. Autorizar push y PR para que la CI corra en GitHub.
+3. Levantar Postgres en un entorno con Docker y ejecutar C06/C22/C41.
+4. Elegir un proveedor de email real y sustituir el sandbox en staging.
+5. Sólo después, valorar despliegue y conexión con `agente`.
