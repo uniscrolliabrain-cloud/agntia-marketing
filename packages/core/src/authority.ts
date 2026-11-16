@@ -44,6 +44,8 @@ export const EFFECT_CLASS: Record<Capability, EffectClass> = {
   'marketing.connection.admin': 'prepare',
   'marketing.brief.read': 'read',
   'marketing.brief.write': 'prepare',
+  'marketing.market.read': 'read',
+  'marketing.market.write': 'prepare',
   'marketing.strategy.propose': 'prepare',
   'marketing.audience.preview': 'read',
   'marketing.audience.snapshot': 'prepare',

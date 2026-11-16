@@ -13,6 +13,7 @@ import type { Principal } from './authority';
 import { EFFECT_CLASS, recordOperation, replayOrReject } from './authority';
 import { newId, sha256 } from './util';
 import { suppressContact } from './consent';
+import { assertNoSelfGrant } from './authority-map';
 
 /**
  * Fachada del servicio (MKT-C02/C35/C37/C38/C39). Agrupa las operaciones
@@ -48,7 +49,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     return result;
   }
 
-  // ── Privacidad (MKT-C39) ─────────────────────────────────────────────────
+  // ── Privacidad (MKT-C39) ────────────────────────────────────────────────
   function submitPrivacyRequest(principal: Principal, input: PrivacyRequest) {
     const parsed = PrivacyRequestSchema.parse(input);
     if (!parsed.verificationRef.startsWith('verify_')) throw new MarketingError('INVALID', 'verification_required');
@@ -118,9 +119,11 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     return request;
   }
 
-  // ── Cooperación entre servicios (MKT-C37) ────────────────────────────────
+  // ── Cooperación entre servicios (MKT-C37) ───────────────────────────────
   function proposeHandoff(principal: Principal, input: Handoff) {
     const parsed = HandoffSchema.parse(input);
+    // M65: Marketing no puede declararse dueño de un efecto de otro dominio.
+    const authority = assertNoSelfGrant(parsed.ownerService, parsed.effect);
     const conflict = ctx.store.handoffs.find(
       (h) =>
         h.tenantId === principal.tenantId &&
@@ -138,7 +141,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
         createdAt: ctx.now().toISOString(),
       };
       ctx.store.handoffs.push(record);
-      return { accepted: false as const, conflictWith: conflict.ownerService, handoff: record };
+      return { accepted: false as const, conflictWith: conflict.ownerService, handoff: record, authority };
     }
     const record = {
       id: newId('hnd'),
@@ -148,7 +151,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
       createdAt: ctx.now().toISOString(),
     };
     ctx.store.handoffs.push(record);
-    return { accepted: true as const, handoff: record };
+    return { accepted: true as const, handoff: record, authority };
   }
 
   function respondHandoff(principal: Principal, handoffId: string, decision: 'accept' | 'reject', note?: string) {
@@ -183,7 +186,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     return ctx.store.handoffs.filter((h) => h.tenantId === principal.tenantId && h.state === 'conflict');
   }
 
-  // ── Coste y observabilidad (MKT-C38) ─────────────────────────────────────
+  // ── Coste y observabilidad (MKT-C38) ────────────────────────────────────
   function estimateServiceCost(input: { contacts: number; emails: number; aiCalls: number; reports: number }) {
     const unit = { contact: 0.0004, email: 0.0009, aiCall: 0.012, report: 0.05 };
     const monthly =
@@ -224,7 +227,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     };
   }
 
-  // ── Asesor Anam (MKT-C36) ────────────────────────────────────────────────
+  // ── Asesor Anam (MKT-C36) ───────────────────────────────────────────────
   const sessions: Array<{ id: string; tenantId: string; actorId: string; scope: string; expiresAt: string; recording: 'off' }> = [];
   function openAdvisorSession(principal: Principal, scope: string) {
     if (!principal.isHuman) throw new MarketingError('FORBIDDEN', 'advisor_session_requires_human');
