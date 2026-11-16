@@ -10,6 +10,8 @@ export const CAPABILITIES = [
   'marketing.connection.admin',
   'marketing.brief.read',
   'marketing.brief.write',
+  'marketing.market.read',
+  'marketing.market.write',
   'marketing.strategy.propose',
   'marketing.audience.preview',
   'marketing.audience.snapshot',
