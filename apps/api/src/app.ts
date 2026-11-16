@@ -5,6 +5,7 @@ import {
   AudienceRuleSchema,
   BriefSchema,
   ClaimEvidenceSchema,
+  CompetitorSchema,
   ConnectionSchema,
   ConversionFactSchema,
   CreativeRevisionSchema,
@@ -14,7 +15,12 @@ import {
   ObservationSchema,
   PrivacyRequestSchema,
   BudgetScenarioSchema,
+  IcpHypothesisSchema,
+  MarketObservationSchema,
+  MarketSourceSchema,
+  OpportunitySchema,
   type Capability,
+  type MarketQuery,
 } from '@agntia/contracts';
 import type { AdapterRegistry } from '@agntia/adapters';
 import {
@@ -24,6 +30,7 @@ import {
   approveJourney,
   assertSnapshotUsable,
   auditSeo,
+  authorityMapView,
   buildBudgetScenario,
   checkClaims,
   commitCampaign,
@@ -42,15 +49,24 @@ import {
   ingestObservation,
   leaseIntents,
   listConnections,
+  listMarketObservations,
+  listMarketSources,
   listObservations,
   pauseCampaign,
+  marketRadar,
   previewAudience,
   previewCampaign,
   previewJourney,
   proposeAds,
   proposeExperiment,
   proposeLanding,
+  proposeOpportunity,
   proposeStrategy,
+  rankOpportunities,
+  registerCompetitor,
+  registerIcp,
+  registerMarketSource,
+  registerObservation,
   publishLanding,
   reconcileIntent,
   registerConnection,
@@ -543,6 +559,56 @@ export function createApp(deps: AppDeps) {
       return results;
     }),
   );
+
+  // ── M01–M10 · Inteligencia de mercado (C03) ─────────────────────────────
+  const marketQuery = (c: Context): MarketQuery => ({
+    ...(c.req.query('topic') ? { topic: c.req.query('topic') } : {}),
+    ...(c.req.query('kind') ? { kind: c.req.query('kind') as MarketQuery['kind'] } : {}),
+    includeStale: c.req.query('includeStale') === 'true',
+  });
+
+  app.post(
+    '/v1/marketing/market/sources',
+    mutate('marketing.market.write', MarketSourceSchema, (p, body) => registerMarketSource(ctx, p, body)),
+  );
+  app.get('/v1/marketing/market/sources', read('marketing.market.read', (p) => listMarketSources(ctx, p.tenantId)));
+
+  app.post(
+    '/v1/marketing/market/observations',
+    mutate('marketing.market.write', MarketObservationSchema, (p, body) => registerObservation(ctx, p, body)),
+  );
+  app.get(
+    '/v1/marketing/market/observations',
+    read('marketing.market.read', (p, c) => listMarketObservations(ctx, p.tenantId, marketQuery(c))),
+  );
+
+  app.post(
+    '/v1/marketing/market/competitors',
+    mutate('marketing.market.write', CompetitorSchema, (p, body) => registerCompetitor(ctx, p, body)),
+  );
+  app.get(
+    '/v1/marketing/market/competitors',
+    read('marketing.market.read', (p) => ctx.store.competitors.filter((c) => c.tenantId === p.tenantId)),
+  );
+
+  app.post(
+    '/v1/marketing/market/icps',
+    mutate('marketing.market.write', IcpHypothesisSchema, (p, body) => registerIcp(ctx, p, body)),
+  );
+
+  app.post(
+    '/v1/marketing/market/opportunities',
+    mutate('marketing.market.write', OpportunitySchema, (p, body) => proposeOpportunity(ctx, p, body)),
+  );
+  app.get(
+    '/v1/marketing/market/opportunities',
+    read('marketing.market.read', (p) => rankOpportunities(ctx, p.tenantId)),
+  );
+
+  app.get('/v1/marketing/market/radar', read('marketing.market.read', (p) => marketRadar(ctx, p.tenantId)));
+
+  // ── M65 · AuthorityMap entre dominios (C01) ─────────────────────────────
+  app.get('/v1/marketing/authority', read('marketing.context.read', () => authorityMapView()));
 
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', detail: 'route_not_found', correlationId: `corr_${crypto.randomUUID().slice(0, 12)}` } }, 404));
 
