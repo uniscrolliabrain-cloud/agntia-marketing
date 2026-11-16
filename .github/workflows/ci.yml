@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [main, 'feat/**', 'docs/**']
+    branches: [main, 'feat/**', 'docs/**', 'impl/**']
   pull_request:
 
 jobs:
@@ -17,3 +17,4 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: node scripts/verify-matrix.mjs
