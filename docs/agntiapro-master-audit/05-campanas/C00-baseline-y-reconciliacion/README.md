@@ -1,0 +1,4 @@
+# C00 — baseline-y-reconciliacion
+Objetivo: Reconciliar código presente con 42 campañas históricas y baseline obsoleto.
+Capacidades: M01-M72. Estado: PROPUESTO; no ejecutado. Baseline main 1a848a49775407997a9550fbe58d27bcde222208.
+Dependencias y orden en [roadmap](../../04-roadmap/ROADMAP-MAESTRO.md). Leer [campaña](CAMPANA.md), [patchsets](PATCHSETS.md), [tests](TEST-PLAN.md), [reporte](EXECUTION-REPORT.md).
