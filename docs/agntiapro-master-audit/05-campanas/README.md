@@ -1,3 +1,7 @@
+# Campañas constructivas C00–C09
+
+Este programa **complementa**, no sustituye, las 42 campañas MKT-C01–C42 ni sus 294 tareas. Los IDs C00–C09 identifican paquetes de convergencia conceptual; cada paquete tiene waves y patchsets verificables.
+
 | ID | Objetivo | Dependencia | Capacidades | Estado de ejecución |
 |---|---|---|---|---|
 | C00 | baseline reproducible | — | todas, verificación | PASS · [reporte](C00-baseline-y-reconciliacion/EXECUTION-REPORT.md) |
@@ -13,4 +17,4 @@
 
 Cada campaña exige reporte por wave, evidence IDs y resultado PASS/FAIL/BLOCKED. Nunca atribuir tests históricos a esta ejecución.
 
-C00–C03 se ejecutaron el 2026-11-16 en la rama `impl/c00-c03-market-authority-20261116`; ver el `EXECUTION-REPORT.md` de cada paquete y la [matriz M01–M72](../06-certificacion/MATRIZ-M01-M72.md). Queda pendiente publicar C04–C09 completas (generadas en local) y ejecutar sus patchsets.
+C00–C03 se ejecutaron el 2026-11-16 en la rama `impl/c00-c03-market-authority-20261116`; ver el `EXECUTION-REPORT.md` de cada paquete y la [matriz M01–M72](../06-certificacion/MATRIZ-M01-M72.md). C04–C09 tienen su `PATCHSETS.md` y `TEST-PLAN.md` preparados; su ejecución está pendiente y no se declara hecha.
