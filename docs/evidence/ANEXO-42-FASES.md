@@ -1,3 +1,6 @@
+> **REVISIÓN DE AUDITORÍA · 2026-11-18**  
+> Los estados y las 101 pruebas aquí enumerados son **declaraciones de ejecución previas**; en esta revisión se han inspeccionado archivos de código y pruebas, pero no se ha corrido la suite ni un entorno real de Postgres/proveedores. Las 42 campañas no equivalen a 42 capacidades operativas en producción. Pendientes prioritarios: RLS real con dos tenants, JWT staging, outbox persistente, APIs externas y contrato padre. Cualquier roadmap que diga NOT_STARTED/DOCUMENTATION_ONLY está obsoleto respecto a `main`.  
+
 # Anexo · ejecución de las 42 fases
 
 **Fecha:** 2026-11-14 · **Rama:** `feat/marketing-42-campaigns`
