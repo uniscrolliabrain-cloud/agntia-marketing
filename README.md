@@ -1,3 +1,6 @@
+> **AUDITORÍA DE VIGENCIA · 2026-11-18**  
+> Hay código de implementación en `main`; no tratar este repositorio como exclusivamente documental. El anexo `docs/evidence/ANEXO-42-FASES.md` reporta **101 pruebas** tras hardening, mientras que algunas secciones anteriores mencionan 88. Son resultados documentados, **no reejecutados** en esta auditoría. Los estados 23 DONE / 15 PARTIAL / 4 BLOCKED corresponden al anexo y no acreditan proveedores reales, Postgres ejecutado ni producción. `docs/release/INFORME-AL-OWNER.md` es un informe histórico previo al código. El roadmap de integración en otra rama todavía dice DOCUMENTATION_ONLY y debe actualizarse. No se han inspeccionado worktrees locales.  
+
 # agntia-marketing
 
 Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental3/9 · 12 de noviembre de2026.
