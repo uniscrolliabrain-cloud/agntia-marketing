@@ -54,6 +54,12 @@ concede ninguna escritura que el SQL no permita.
 Suite completa con `DATABASE_URL`: **131/131** (antes 125; +6 nuevas).
 `npx tsc -p tsconfig.json --noEmit`: exit 0.
 
+CI sobre `6ecdb60` (run
+[44345391758](https://github.com/uniscrolliabrain-cloud/agntia-marketing/actions/runs/44345391758)):
+`verify` y `database` en **success**. El job `database` corre la suite completa
+contra `postgres:16`, así que las 6 pruebas del endpoint también pasan en CI,
+no sólo en el clúster local.
+
 ## Límites que quedan abiertos
 
 - **La membership se lee del store en memoria**, igual que en el resto del API:
@@ -83,4 +89,5 @@ npx tsc -p tsconfig.json --noEmit
 - `run.log`: salida verbose de las 6 pruebas.
 - `vitest.json`: resultados en JSON (6 tests, 6 pass, 0 fail).
 - `full-suite.log`: la suite completa, 131/131.
+- `ci.json`: el run de GitHub Actions sobre este commit (`verify` y `database`).
 - `provenance.json`: SHA base, hashes de las fuentes y versión de Postgres.

@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-18",
+  "sha": "6ecdb6014e807ba88ee9dd399e9ea01e62fd5df0",
+  "workflow": "ci",
+  "run_id": 44345391758,
+  "run_number": 49,
+  "url": "https://github.com/uniscrolliabrain-cloud/agntia-marketing/actions/runs/44345391758",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "verify",
+      "conclusion": "success",
+      "id": 134946271248,
+      "steps": ["npm ci", "npm run typecheck", "npm test"]
+    },
+    {
+      "name": "database",
+      "conclusion": "success",
+      "id": 134946272093,
+      "steps": ["postgres:16 service", "npm ci", "npm run db:migrate", "npm test"]
+    }
+  ],
+  "note": "El job `database` corre la suite completa contra postgres:16, incluida tests/db/admin-api.test.ts (6 pruebas del endpoint administrativo)."
+}
