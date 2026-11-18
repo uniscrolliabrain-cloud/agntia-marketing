@@ -29,14 +29,15 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: bucle de entrega sandbox.
 - `db/migrations`: esquema con RLS (escrito, no ejecutado).
-- `tests/`: 101 pruebas en 6 archivos.
+- `tests/`: 120 pruebas en 8 archivos (incluye integración contra Postgres real).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables
 
 ```
 npx tsc -p tsconfig.json --noEmit   # exit 0
-npx vitest run                      # 101 passed (101)
+npx vitest run                      # 107 passed, 13 skipped (sin DB)
+DATABASE_URL=… npx vitest run       # 120 passed (120), Postgres 16.15 real
 ```
 
 Smoke manual: `/healthz` 200 JSON, `/portal/` 200 HTML, `/v1/marketing/me` sin
@@ -52,13 +53,13 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 
 - **Real y verificado:** verificación JWT (HS256 de test) y entrega de email al sandbox local.
 - **Simulado:** Mautic, Listmonk, Matomo, Plausible, PostHog, GA4, GSC, GrowthBook, Ads, Anam.
-- **Escrito, no ejecutado:** Postgres con RLS y transacciones del outbox.
+- **Ejecutado y verificado:** Postgres 16.15 real (migraciones, RLS, FK, `SKIP LOCKED`, rate limit compartido); el API aún no lo consume.
 
 ## 8. Riesgos y deuda técnica
 
-1. Persistencia en memoria: reiniciar el proceso pierde intents y auditoría.
-2. Sin RLS ejecutado no hay prueba de aislamiento a nivel de base de datos.
-3. Rate limit por proceso, no distribuido.
+1. Persistencia en memoria: el SQL ya está verificado, pero el API sigue en memoria y reiniciar pierde intents y auditoría. Es la campaña asignada a otro agente.
+2. El aislamiento RLS está probado en SQL; falta probarlo a través del API.
+3. Rate limit: el contador compartido existe y está probado; falta despliegue multi-instancia.
 4. Aprobación de journey por revisión completa, no por paso.
 5. Sin firma en los ACK de handoff entre servicios.
 6. CI definido pero no ejecutado en GitHub.
@@ -85,6 +86,6 @@ cambios propuestos en `agente`. Ninguno aplicado.
 
 1. Revisar la matriz y los 84 gates; decidir qué `PARTIAL` aceptas como deuda.
 2. Autorizar push y PR para que la CI corra en GitHub.
-3. Levantar Postgres en un entorno con Docker y ejecutar C06/C22/C41.
+3. Completar la persistencia del API/worker sobre el Postgres ya verificado (handoff en `FreeBuff/HANDOFF-PERSISTENCIA-Y-SCHEDULER.md`).
 4. Elegir un proveedor de email real y sustituir el sandbox en staging.
 5. Sólo después, valorar despliegue y conexión con `agente`.

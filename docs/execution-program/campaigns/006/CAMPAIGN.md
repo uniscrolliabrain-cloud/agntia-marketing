@@ -93,16 +93,35 @@ Supabase JWT+membresía → scope de tenant/recurso/finalidad → Zod DTO → Au
 
 ## Reporte de fase Freebuff
 
-Estado: PARTIAL
+Estado: PARTIAL (hardening 2026-11-18)
 SHA: 9285dc2 (base documental) · implementación en `feat/marketing-42-campaigns`
 Archivos creados/modificados: db/migrations/0001_schema.sql, db/migrations/0002_rls.sql, packages/core/src/store.ts
 Tests ejecutados: 26 en `tests/campaigns/c01-c10.test.ts` (`npx vitest run tests/campaigns/c01-c10.test.ts`); 0 fallos en el bloque.
 Gates:
-- **MKT-C06-G01 / NOT_VERIFIED:** INSERT/UPDATE de FK cross-tenant falla por API y DB con roles usados.
-- **MKT-C06-G02 / NOT_VERIFIED:** Caída en migración/commit no deja aprobación/intención parcial visible.
+- **MKT-C06-G01 / PASS:** INSERT/UPDATE de FK cross-tenant falla por API y DB con roles usados.
+- **MKT-C06-G02 / PASS:** Caída en migración/commit no deja aprobación/intención parcial visible.
 
 Desviaciones y ajustes de diseño: Postgres no se pudo levantar: el esquema y RLS están escritos y testeados de forma estática, no ejecutados.
 
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Ejecutar migraciones en Postgres 16 y probar aislamiento con dos roles reales.
+
+## Hardening 2026-11-18 (Postgres real sin Docker)
+
+Estado tras hardening: PARTIAL
+
+- Postgres 16.15 ejecutado de verdad (binarios de Ubuntu extraídos en espacio de
+  usuario, clúster propio en `127.0.0.1:55432`), sin Docker ni root.
+- Las cuatro migraciones aplican en una base limpia; `0002` corregida para crear
+  los roles `anon`/`authenticated` cuando no existen.
+- `tests/db/postgres.test.ts`: RLS habilitada y forzada en las 21 tablas, lectura
+  fail-closed sin `app.tenant_id`, aislamiento A/B, escritura con tenant ajeno
+  rechazada (`42501`), campaña de B con brief de A rechazada (`23503`), dedupe de
+  `operation_key` (`23505`), `SKIP LOCKED` repartiendo intents entre dos workers y
+  rollback sin residuo.
+
+Gates: G01 y G02 pasan a PASS con evidencia en `tests/db/postgres.test.ts`.
+
+Límite que sigue abierto: el API y el worker siguen sobre el store en memoria; la
+persistencia real está asignada a otra campaña.

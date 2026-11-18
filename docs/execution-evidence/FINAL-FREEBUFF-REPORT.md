@@ -12,11 +12,11 @@
 |---|---|
 | Campañas del programa | 42/42 con código, pruebas y reporte de fase |
 | Estado declarado | 23 DONE · 15 PARTIAL · 4 BLOCKED |
-| Pruebas automatizadas | 101 en 6 archivos |
+| Pruebas automatizadas | 120 en 8 archivos (13 contra Postgres real) |
 | Typecheck | `npx tsc -p tsconfig.json --noEmit` sin errores |
-| Gates del programa | 84 · 48 PASS · 36 NOT_VERIFIED |
+| Gates del programa | 84 · 50 PASS · 34 NOT_VERIFIED |
 | Proveedores externos conectados | 0 (todos en stub `disabled` salvo email sandbox local) |
-| Postgres ejecutado | No (sin daemon Docker accesible en la máquina) |
+| Postgres ejecutado | Sí: 16.15 real sin Docker (migraciones + 13 pruebas) |
 | Despliegues, gasto, envíos reales | Ninguno |
 
 `PARTIAL` y `NOT_VERIFIED` no son sinónimos de roto: significan que el código y
@@ -28,7 +28,8 @@ una cuenta real no se ha podido verificar aquí. Se declara en vez de simularse.
 ```bash
 npm install --no-audit --no-fund
 npx tsc -p tsconfig.json --noEmit      # exit 0, sin salida
-npx vitest run                         # 6 archivos, 101 pruebas, 0 fallos
+npx vitest run                         # 107 pruebas, 13 skipped (sin DB)
+DATABASE_URL=postgres://… npx vitest run   # 120 pruebas (incluye 13 de Postgres real)
 npm run api:dev                        # servidor en :8787
 ```
 
@@ -52,43 +53,43 @@ gates del programa · proveedor externo real · Postgres real · archivo de evid
 | `MKT-C03` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | N/A | `tests/campaigns/c01-c10.test.ts` |
 | `MKT-C04` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | N/A | `tests/campaigns/c01-c10.test.ts` |
 | `MKT-C05` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | N/A | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C06` | PASS | PASS | PASS (26) | 0/2 PASS | N/A | ESCRITO/NO_EJECUTADO | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C07` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C08` | PASS | PASS | PASS (26) | 0/2 PASS | N/A | NO (memoria) | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C09` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C10` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c01-c10.test.ts` |
-| `MKT-C11` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C12` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C13` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C14` | PASS | PASS | PASS (20) | 2/2 PASS | SANDBOX | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C15` | PASS | PASS | PASS (20) | 0/2 PASS | N/A | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C16` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C17` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C18` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C06` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c01-c10.test.ts` |
+| `MKT-C07` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c01-c10.test.ts` |
+| `MKT-C08` | PASS | PASS | PASS (26) | 0/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c01-c10.test.ts` |
+| `MKT-C09` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c01-c10.test.ts` |
+| `MKT-C10` | PASS | PASS | PASS (26) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c01-c10.test.ts` |
+| `MKT-C11` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C12` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C13` | PASS | PASS | PASS (20) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C14` | PASS | PASS | PASS (20) | 2/2 PASS | SANDBOX | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C15` | PASS | PASS | PASS (20) | 0/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C16` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C17` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
+| `MKT-C18` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c11-c20.test.ts` |
 | `MKT-C19` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | N/A | `tests/campaigns/c11-c20.test.ts` |
 | `MKT-C20` | PASS | PASS | PASS (20) | 2/2 PASS | N/A | N/A | `tests/campaigns/c11-c20.test.ts` |
-| `MKT-C21` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C22` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C23` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C24` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C25` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C26` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C27` | PASS | PASS | PASS (17) | 0/2 PASS | N/A | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C28` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C29` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C30` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c21-c30.test.ts` |
-| `MKT-C31` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C32` | PASS | PASS | PASS (17) | 0/2 PASS | NO | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C33` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C34` | PASS | PASS | PASS (17) | 0/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C21` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C22` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C23` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C24` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C25` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C26` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C27` | PASS | PASS | PASS (17) | 0/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C28` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C29` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C30` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c21-c30.test.ts` |
+| `MKT-C31` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C32` | PASS | PASS | PASS (17) | 0/2 PASS | NO | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C33` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C34` | PASS | PASS | PASS (17) | 0/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
 | `MKT-C35` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | N/A | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C36` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C37` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C38` | PASS | PASS | PASS (17) | 0/2 PASS | NO | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C39` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C40` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | NO (memoria) | `tests/campaigns/c31-c40.test.ts` |
-| `MKT-C41` | PASS | PASS | PASS (11) | 0/2 PASS | NO | NO (memoria) | `tests/campaigns/c41-c42.test.ts` |
-| `MKT-C42` | PASS | PASS | PASS (11) | 0/2 PASS | NO | NO (memoria) | `tests/campaigns/c41-c42.test.ts` |
+| `MKT-C36` | PASS | PASS | PASS (17) | 0/2 PASS | STUB | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C37` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C38` | PASS | PASS | PASS (17) | 0/2 PASS | NO | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C39` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C40` | PASS | PASS | PASS (17) | 2/2 PASS | N/A | SQL VERIFICADO / API en memoria | `tests/campaigns/c31-c40.test.ts` |
+| `MKT-C41` | PASS | PASS | PASS (11) | 0/2 PASS | NO | SQL VERIFICADO / API en memoria | `tests/campaigns/c41-c42.test.ts` |
+| `MKT-C42` | PASS | PASS | PASS (11) | 0/2 PASS | NO | SQL VERIFICADO / API en memoria | `tests/campaigns/c41-c42.test.ts` |
 
 Ninguna fila declara `PASS` en proveedor o Postgres: la columna existe para que
 la auditoría vea de un golpe qué depende de infraestructura no disponible.
@@ -107,8 +108,8 @@ la auditoría vea de un golpe qué depende de infraestructura no disponible.
 | `MKT-C04-G02` | Sesión AV mantiene mandato vencido: PEP bloquea efectos nuevos | **PASS** |
 | `MKT-C05-G01` | Payload incluye SQL/model/method/baseURL y scope arbitrario: rechazado | **PASS** |
 | `MKT-C05-G02` | Conversiones atribuidas intentan serializarse como ventas causales: contrato exige tipo/fuente | **PASS** |
-| `MKT-C06-G01` | INSERT/UPDATE de FK cross-tenant falla por API y DB con roles usados | **NOT_VERIFIED** |
-| `MKT-C06-G02` | Caída en migración/commit no deja aprobación/intención parcial visible | **NOT_VERIFIED** |
+| `MKT-C06-G01` | INSERT/UPDATE de FK cross-tenant falla por API y DB con roles usados | **PASS** |
+| `MKT-C06-G02` | Caída en migración/commit no deja aprobación/intención parcial visible | **PASS** |
 | `MKT-C07-G01` | Persona retira permiso entre approval y dispatch: bloqueada para efectos nuevos | **PASS** |
 | `MKT-C07-G02` | Consentimiento AV intenta habilitar audience upload o newsletter: denegado | **PASS** |
 | `MKT-C08-G01` | ConexiónA usa site/accountB válido: binding bloquea antes de leer | **NOT_VERIFIED** |
@@ -187,7 +188,7 @@ la auditoría vea de un golpe qué depende de infraestructura no disponible.
 | Integración | Estado | Qué se ejecutó realmente |
 |---|---|---|
 | Supabase JWT | Implementado, verificado con HS256 de test | Firma, issuer, audiencia, expiración y membership de servidor; RS256 contra proyecto real no probado |
-| Postgres + RLS | Escrito, no ejecutado | Migraciones y políticas en `db/migrations`; sin daemon no hay prueba de aislamiento en DB |
+| Postgres + RLS | Ejecutado y verificado | Cuatro migraciones en Postgres 16.15; RLS forzada, aislamiento A/B, FK cross-tenant y `SKIP LOCKED` probados |
 | Email | `SandboxEmailAdapter` | Entrega local sólo a destinatarios `sandbox_*`, con modos accept/fail/unknown y reconciliación |
 | Mautic, Listmonk | Stub `disabled` | Contratos y mapeo; ninguna llamada HTTP real |
 | Matomo, Plausible, PostHog, GA4, GSC | Stub `disabled` | Contratos de observación; ninguna lectura real |
@@ -198,22 +199,23 @@ la auditoría vea de un golpe qué depende de infraestructura no disponible.
 
 ## 6. Qué NO está verificado (y por qué)
 
-1. **Postgres, RLS y transacciones** (C06/C22/C41): no hay servidor ni daemon Docker accesible.
+1. **Postgres en el camino del API** (C22/C41): el SQL está verificado, pero el API y el worker siguen en memoria.
 2. **JWT RS256 contra Supabase staging** (C03): sólo se probó el camino HS256 de test.
 3. **Cualquier API de proveedor** (C11–C13, C23–C25, C29–C30, C36, C38): sin cuentas, licencias ni tokens.
 4. **CI de GitHub** (C41): el workflow existe; sólo se ejecutaron los mismos comandos en local.
 5. **Envío real de correo, publicación de landings, gasto en ads**: fuera del alcance autorizado.
-6. **Rate limit distribuido** (C38): el contador es por proceso.
+6. **Rate limit distribuido**: el contador compartido está verificado en SQL; el despliegue multi-instancia no se ha probado.
 
 ## 7. Cómo auditar esto de forma independiente (Codex Cloud)
 
 1. `git checkout feat/marketing-42-campaigns`, confirmar HEAD y `git log --oneline -5`.
 2. Ejecutar los tres comandos de la sección 2 y comparar: 101 pruebas, 0 fallos, typecheck limpio.
 3. Leer `tests/campaigns/hardening.test.ts`: cubre journey programado, revocación de aprobación, baja posterior al commit, zona IANA, FSM de handoff y rate limit.
-4. Verificar que ningún adaptador externo hace red: `grep -rn "fetch(" packages/adapters/src` no debe encontrar llamadas a proveedores.
-5. Confirmar aislamiento: `tests/campaigns/c01-c10.test.ts` incluye tenant B contra recursos de A.
-6. Contrastar cada fila de la matriz con su `CAMPAIGN.md`; cada reporte de fase cita archivos y tests concretos.
-7. Buscar secretos: `git grep -nE "(sk_|pk_|ghp_|AKIA)"` no debe encontrar valores.
+4. Con Postgres: `DATABASE_URL=… npx vitest run tests/db/postgres.test.ts` debe dar 13/13.
+5. Verificar que ningún adaptador externo hace red: `grep -rn "fetch(" packages/adapters/src` no debe encontrar llamadas a proveedores.
+6. Confirmar aislamiento unitario: `tests/campaigns/c01-c10.test.ts` incluye tenant B contra recursos de A.
+7. Contrastar cada fila de la matriz con su `CAMPAIGN.md`; cada reporte de fase cita archivos y tests concretos.
+8. Buscar secretos: `git grep -nE "(sk_|pk_|ghp_|AKIA)"` no debe encontrar valores.
 
 Discrepancia documental conocida: `docs/implementation/README.md` desaconseja
 implementar desde scaffolds incompletos; el founder autorizó ejecutar las 42

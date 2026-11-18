@@ -118,3 +118,17 @@ Estado tras hardening: DONE
 Gates: G01 y G02 siguen PASS; la revalidación añade la garantía de que una revocación posterior al commit no produce efecto.
 
 Límite que sigue abierto: El outbox sigue en memoria: `FOR UPDATE SKIP LOCKED` y la transacción Postgres no se han ejecutado.
+
+## Hardening 2026-11-18 (outbox en Postgres real)
+
+- `0003_intent_scheduling.sql` añade `journey_step_id` y `scheduled_for`, un índice
+  parcial de vencimientos y la unicidad por paso (`coalesce` para campañas).
+- Probado que dos workers con `for update skip locked` se reparten intents distintos
+  sin duplicar y con `lease_fence = 1` en cada uno.
+- Probado que un `operation_key` repetido falla con `23505` y que dos pasos del
+  mismo journey conviven sin romper la unicidad.
+
+Gates: G01 y G02 se mantienen PASS; la evidencia añade ejecución SQL real.
+
+Límite abierto: el worker sigue reclamando del store en memoria; el `SKIP LOCKED`
+está verificado como SQL, no como camino del API.

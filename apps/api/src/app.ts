@@ -42,6 +42,8 @@ import {
   ingestObservation,
   leaseIntents,
   listConnections,
+  MemoryRateLimiter,
+  type RateLimiter,
   listObservations,
   pauseCampaign,
   previewAudience,
@@ -68,6 +70,10 @@ export interface AppDeps {
   ctx: Ctx;
   registry: AdapterRegistry;
   verifier: JwtVerifier;
+  /** Backend de rate limit; por defecto memoria (una sola instancia). */
+  rateLimiter?: RateLimiter;
+  /** Secreto HMAC para ACKs de handoff. Sin él, los ACK se emiten sin firma. */
+  ackSecret?: string;
 }
 
 interface Vars {
@@ -89,7 +95,7 @@ const CampaignInputSchema = z
 
 export function createApp(deps: AppDeps) {
   const { ctx, registry } = deps;
-  const service = createService(ctx, registry);
+  const service = createService(ctx, registry, { ...(deps.ackSecret ? { ackSecret: deps.ackSecret } : {}) });
   const app = new Hono<{ Variables: Vars }>();
 
   const idempotency = (c: Context) => {
@@ -107,8 +113,10 @@ export function createApp(deps: AppDeps) {
   };
 
   // Rate limit por tenant y minuto sobre operaciones de escritura (MKT-C38).
+  // Con varias instancias se inyecta un backend compartido; si el backend falla,
+  // se deniega (fail-closed) en vez de dejar pasar la petición.
   const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE ?? 120);
-  const rateWindow = new Map<string, number>();
+  const rateLimiter: RateLimiter = deps.rateLimiter ?? new MemoryRateLimiter();
 
   app.get('/healthz', (c) => c.json({ ok: true, service: 'agntia-marketing', policy: ctx.policyVersion }));
 
@@ -128,10 +136,13 @@ export function createApp(deps: AppDeps) {
   ) {
     return async (c: Context) => {
       const principal = resolvePrincipal(ctx, c.get('jwt') as Vars['jwt'], capability);
-      const windowKey = `${principal.tenantId}:${Math.floor(ctx.now().getTime() / 60_000)}`;
-      const used = rateWindow.get(windowKey) ?? 0;
-      if (used >= RATE_LIMIT_PER_MINUTE) throw new MarketingError('RATE_LIMITED', 'tenant_rate_limit');
-      rateWindow.set(windowKey, used + 1);
+      let decision;
+      try {
+        decision = await rateLimiter.consume(principal.tenantId, RATE_LIMIT_PER_MINUTE, ctx.now().getTime());
+      } catch {
+        throw new MarketingError('UNAVAILABLE', 'rate_limiter_unavailable');
+      }
+      if (!decision.allowed) throw new MarketingError('RATE_LIMITED', 'tenant_rate_limit');
       const key = idempotency(c);
       const raw = await c.req.json().catch(() => ({}));
       const body = schema.parse(raw);
@@ -497,6 +508,21 @@ export function createApp(deps: AppDeps) {
     '/v1/marketing/handoffs/expire',
     mutate('marketing.campaign.preview', z.object({ olderThanMinutes: z.number().int().min(5).max(43_200).optional() }).strict(), (p, body) =>
       service.expireHandoffs(p, body.olderThanMinutes ?? 1440),
+    ),
+  );
+  app.post(
+    '/v1/marketing/handoffs/:id/verify-ack',
+    mutate(
+      'marketing.campaign.preview',
+      z
+        .object({
+          decision: z.enum(['accept', 'reject']),
+          actorId: z.string().min(1).max(120),
+          decidedAt: z.string().min(10).max(40),
+          signature: z.string().regex(/^[0-9a-f]{64}$/),
+        })
+        .strict(),
+      (p, body, c) => service.verifyAck(p, param(c), body),
     ),
   );
   app.get('/v1/marketing/conflicts', read('marketing.campaign.preview', (p) => service.listConflicts(p)));

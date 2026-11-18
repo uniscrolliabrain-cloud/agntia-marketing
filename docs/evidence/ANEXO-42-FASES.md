@@ -11,7 +11,7 @@
 | DONE | 23 |
 | PARTIAL | 15 |
 | BLOCKED | 4 |
-| Pruebas automatizadas | 101 (6 archivos) |
+| Pruebas automatizadas | 120 (8 archivos, 13 contra Postgres real) |
 | Typecheck | limpio (`tsc --noEmit`) |
 
 `PARTIAL` no es un fallo: el código y sus pruebas existen, pero la parte que
@@ -93,7 +93,7 @@ podido verificar en esta máquina. Se declara en vez de simularse.
 
 ## Incidencias y deuda priorizada
 
-1. Ejecutar Postgres y probar RLS con dos roles reales (C06/C22).
+1. Conectar el API y el worker al Postgres ya verificado (C22; asignado a otra campaña).
 2. Verificar JWT RS256 contra un proyecto Supabase de staging (C03).
 3. Elegir un proveedor de email real y verificar edición/licencia (C11–C14).
 4. Persistir el outbox de journeys y el scheduler en Postgres, con approval por paso (C19/C22).
@@ -109,6 +109,20 @@ Segunda pasada sobre el código ya entregado, sin rehacer campañas:
 - FSM de handoff con aceptación, rechazo y caducidad sin ACK; endpoint de conflictos.
 - Rate limit por tenant y minuto; endpoints `GET /events` y `GET /conflicts`.
 - 13 pruebas nuevas en `tests/campaigns/hardening.test.ts` (101 en total). `npx tsc --noEmit` limpio.
+
+## Hardening 2026-11-18 (Postgres real y seguridad de borde)
+
+- Postgres 16.15 real sin Docker: cuatro migraciones aplicadas y 13 pruebas de
+  integración (RLS fail-closed, aislamiento, FK cross-tenant, dedupe, `SKIP LOCKED`,
+  rollback, contador compartido).
+- Corrección de `0002_rls.sql`: creaba policies pero fallaba por roles inexistentes.
+- `0003`: scheduling de intents por paso de journey, con índice de vencimientos.
+- `0004`: contador de rate limit compartido, con RLS y comprobación de tenant.
+- `RateLimiter` enchufable; con `DATABASE_URL` el límite se comparte y si el backend
+  falla se deniega.
+- ACK de handoff firmado con HMAC (`HANDOFF_ACK_SECRET`); sin secreto no se verifica
+  nada (`503 ack_signing_unconfigured`).
+- Total: 120 pruebas, `tsc --noEmit` limpio.
 
 ## Revisión pendiente
 

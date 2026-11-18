@@ -3,6 +3,7 @@ import { createSupabaseJwtVerifier, signTestJwt } from '../../apps/api/src/auth'
 import { SandboxEmailAdapter, createRegistry, type AdapterRegistry } from '@agntia/adapters';
 import {
   createStore,
+  type RateLimiter,
   registerTwin,
   resolvePrincipal,
   setContactPolicy,
@@ -32,7 +33,12 @@ export interface Harness {
 let uniqueKey = 0;
 export const key = (label = 'k') => `${label}-${Date.now()}-${(uniqueKey += 1)}`;
 
-export async function makeHarness(options: { sandboxMode?: 'accept' | 'fail' | 'unknown'; contactPolicy?: { maxPerSubjectPerWindow: number; windowHours: number; quietHours?: { startUtcHour: number; endUtcHour: number }; timezone?: string } } = {}): Promise<Harness> {
+export async function makeHarness(options: {
+  sandboxMode?: 'accept' | 'fail' | 'unknown';
+  contactPolicy?: { maxPerSubjectPerWindow: number; windowHours: number; quietHours?: { startUtcHour: number; endUtcHour: number }; timezone?: string };
+  ackSecret?: string;
+  rateLimiter?: RateLimiter;
+} = {}): Promise<Harness> {
   let clock = new Date('2026-11-14T10:00:00Z');
   const ctx = createStore(() => clock);
   const advance = (ms: number) => {
@@ -74,7 +80,13 @@ export async function makeHarness(options: { sandboxMode?: 'accept' | 'fail' | '
   const sandbox = new SandboxEmailAdapter(options.sandboxMode ?? 'accept');
   const registry = createRegistry({ email_sandbox: sandbox });
   const verifier = createSupabaseJwtVerifier({ issuer: ISS, audience: AUD, hmacSecret: SECRET });
-  const app = createApp({ ctx, registry, verifier });
+  const app = createApp({
+    ctx,
+    registry,
+    verifier,
+    ...(options.ackSecret ? { ackSecret: options.ackSecret } : {}),
+    ...(options.rateLimiter ? { rateLimiter: options.rateLimiter } : {}),
+  });
 
   const token = (sub: string, tenantId: string, issuer = ISS, expires = 3600) =>
     signTestJwt({ secret: SECRET, issuer, audience: AUD, sub, tenantId, expiresInSeconds: expires });

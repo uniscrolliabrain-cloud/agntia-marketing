@@ -4,6 +4,7 @@ import { createRegistry } from '@agntia/adapters';
 import { createStore } from '@agntia/core';
 import { createApp } from './app';
 import { createSupabaseJwtVerifier } from './auth';
+import { PgRateLimiter } from './ratelimit-pg';
 
 /**
  * Configuración por entorno. En producción se exige JWKS https y nunca se usa
@@ -27,7 +28,21 @@ const verifier = createSupabaseJwtVerifier({
   requiredRole: 'authenticated',
 });
 
-const app = createApp({ ctx: createStore(), registry: createRegistry(), verifier });
+// Con `DATABASE_URL` el rate limit es compartido; sin ella cae a memoria y el
+// proceso lo declara, porque el límite efectivo se multiplica por instancia.
+let rateLimiter;
+if (process.env.DATABASE_URL) {
+  const { default: pg } = await import('pg');
+  rateLimiter = new PgRateLimiter(new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 }));
+} else {
+  console.warn('rate_limiter=memory: el límite no se comparte entre instancias');
+}
+
+const ackSecret = process.env.HANDOFF_ACK_SECRET;
+if (!ackSecret) console.warn('handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs');
+else if (ackSecret.length < 16) throw new Error('HANDOFF_ACK_SECRET_too_short');
+
+const app = createApp({ ctx: createStore(), registry: createRegistry(), verifier, ...(rateLimiter ? { rateLimiter } : {}), ...(ackSecret ? { ackSecret } : {}) });
 app.use('/portal/*', serveStatic({ root: './apps/portal/public', rewriteRequestPath: (p) => p.replace(/^\/portal/, '') || '/' }));
 
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {

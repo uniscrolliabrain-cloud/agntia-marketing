@@ -14,9 +14,13 @@ crear la config y volcar secretos requiere autorización del founder.
 | `PORT` | servicio | No (8787) | `apps/api/src/server.ts` | Puerto HTTP | — |
 | `NODE_ENV` | servicio | No | `apps/api/src/app.ts` | Modo de ejecución | — |
 | `RATE_LIMIT_PER_MINUTE` | servicio | No (120) | `apps/api/src/app.ts` | Tope de mutaciones por tenant | — |
+| `DATABASE_URL` | servicio | Recomendada | `apps/api/src/server.ts` | Postgres: rate limit compartido y futura persistencia | 180 días |
+| `HANDOFF_ACK_SECRET` | servicio | Sí en staging/prod | `apps/api/src/server.ts` | HMAC de ACKs de handoff (mín. 16 chars) | 90 días |
 
-Regla dura: `DEV_JWT_SECRET` **nunca** se define en `stg`/`prd`. Si aparece, el
-arranque debe considerarse comprometido y el secreto rotarse.
+Reglas duras: `DEV_JWT_SECRET` **nunca** se define en `stg`/`prd`, y sin
+`HANDOFF_ACK_SECRET` los ACK de handoff salen sin firma (el servicio lo avisa al
+arrancar y la verificación devuelve `503 ack_signing_unconfigured`). Sin
+`DATABASE_URL` el rate limit es por proceso y también se avisa por consola.
 
 ## 2. Variables previstas para cuando exista proveedor real
 
@@ -25,7 +29,6 @@ porque los adaptadores están en `disabled`.
 
 | Variable | Ámbito | Entorno | Estado |
 |---|---|---|---|
-| `DATABASE_URL` (o `PG*`) | servicio | stg/prd | Pendiente de Postgres real |
 | `MAUTIC_BASE_URL`, `MAUTIC_CLIENT_ID`, `MAUTIC_CLIENT_SECRET` | conexión | stg/prd | Stub |
 | `LISTMONK_BASE_URL`, `LISTMONK_API_USER`, `LISTMONK_API_TOKEN` | conexión | stg/prd | Stub |
 | `MATOMO_BASE_URL`, `MATOMO_TOKEN` | conexión | stg/prd | Stub |

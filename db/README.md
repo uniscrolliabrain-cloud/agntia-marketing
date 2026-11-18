@@ -1,16 +1,33 @@
 # Base de datos
 
-**Estado: NOT_VERIFIED.** El esquema y las políticas están escritos y revisados
-por tests estáticos, pero **no se ha ejecutado Postgres**: en esta máquina no hay
-servidor ni Docker daemon disponible. Ningún gate de persistencia real puede
-declararse PASS hasta correr ambas migraciones contra Postgres 16.
+**Estado: VERIFICADO en Postgres 16.15 real** (2026-11-18), sin Docker: se
+extrajeron los binarios oficiales de Ubuntu en espacio de usuario y se levantó un
+clúster propio. Las cuatro migraciones aplican en un Postgres limpio y
+`tests/db/postgres.test.ts` (13 pruebas) cubre RLS fail-closed, aislamiento por
+tenant, FK cross-tenant, dedupe de outbox, `SKIP LOCKED` con dos workers,
+rollback y el contador compartido de rate limit.
+
+Lo que sigue sin verificarse: **el API y el worker no usan Postgres todavía**.
+La persistencia real es la campaña pendiente; hoy el dominio corre en memoria y
+estas migraciones son la base que debe consumir ese repositorio.
 
 ## Migraciones
 
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0001_schema.sql
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0002_rls.sql
+npm run db:migrate        # aplica db/migrations/*.sql en orden
 ```
+
+| Migración | Contenido |
+|---|---|
+| `0001_schema.sql` | Tablas con `tenant_id` y claves compuestas |
+| `0002_rls.sql` | RLS forzada + policy `tenant_isolation`; crea `anon`/`authenticated` si faltan |
+| `0003_intent_scheduling.sql` | `journey_step_id`, `scheduled_for`, dedupe por paso e índice de vencimientos |
+| `0004_rate_limit.sql` | `rate_limit_counters` + `consume_rate_limit(text,int,timestamptz)` |
+
+`0002` fallaba en un Postgres limpio (`role "anon" does not exist`) porque asumía
+un proyecto Supabase; ahora los roles se crean de forma idempotente. `0003`
+sustituye la unicidad `(tenant_id, campaign_id, subject_ref)`, que impedía más de
+un paso por sujeto en un journey.
 
 `0002_rls.sql` habilita y **fuerza** Row Level Security en todas las tablas con
 `tenant_id` y crea la policy `tenant_isolation` contra `app_current_tenant()`.

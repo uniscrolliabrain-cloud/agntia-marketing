@@ -118,3 +118,17 @@ Estado tras hardening: PARTIAL
 Gates: G01 y G02 siguen NOT_VERIFIED: exigen facturación real y dos instancias con carga.
 
 Límite que sigue abierto: Falta un contador compartido (Redis/Postgres) y pruebas de dos tenants bajo carga real.
+
+## Hardening 2026-11-18 (contador compartido)
+
+- `RateLimiter` con backend intercambiable: `MemoryRateLimiter` por defecto y
+  `PgRateLimiter` cuando existe `DATABASE_URL`.
+- `0004_rate_limit.sql`: tabla con RLS y función `consume_rate_limit` que exige
+  `p_tenant = app_current_tenant()` y devuelve `allowed` de forma atómica.
+- Verificado que 10 consumos concurrentes con límite 5 permiten exactamente 5, que
+  dos instancias del API comparten la ventana y que consumir el contador de otro
+  tenant falla con `42501`.
+- Si el backend falla, el API responde `503 rate_limiter_unavailable` (fail-closed).
+
+Gates: G02 pasa a PASS (dos tenants/instancias sin lectura cruzada del contador);
+G01 sigue NOT_VERIFIED porque exige facturación real.

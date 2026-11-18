@@ -33,5 +33,18 @@ end $$;
 -- Nota operativa: service_role y BYPASSRLS no sustituyen a la policy. El worker
 -- abre transacción, fija app.tenant_id del mandato verificado y sólo entonces
 -- reclama intents con `for update skip locked`.
+
+-- En Supabase los roles existen; en un Postgres limpio la migración fallaba con
+-- `role "anon" does not exist`. Se crean de forma idempotente antes de conceder.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin noinherit;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin noinherit;
+  end if;
+end $$;
+
 revoke all on all tables in schema public from anon;
 grant select, insert, update, delete on all tables in schema public to authenticated;

@@ -10,6 +10,7 @@ import {
 import type { AdapterRegistry } from '@agntia/adapters';
 import type { Ctx } from './store';
 import type { Principal } from './authority';
+import { buildHandoffAck, verifyHandoffAck } from './ack';
 import { EFFECT_CLASS, recordOperation, replayOrReject } from './authority';
 import { newId, sha256 } from './util';
 import { suppressContact } from './consent';
@@ -18,7 +19,12 @@ import { suppressContact } from './consent';
  * Fachada del servicio (MKT-C02/C35/C37/C38/C39). Agrupa las operaciones
  * nominadas, aplica idempotencia y devuelve siempre el mismo sobre de resultado.
  */
-export function createService(ctx: Ctx, registry: AdapterRegistry) {
+export interface ServiceOptions {
+  /** Secreto HMAC para ACKs de handoff. Sin él, el ACK se emite sin firma. */
+  ackSecret?: string;
+}
+
+export function createService(ctx: Ctx, registry: AdapterRegistry, options: ServiceOptions = {}) {
   async function run<T>(
     principal: Principal,
     capability: Capability,
@@ -157,11 +163,39 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     if (handoff.state !== 'proposed') throw new MarketingError('CONFLICT', `handoff_${handoff.state}`);
     handoff.state = decision === 'accept' ? 'accepted' : 'rejected';
     if (note) handoff.acceptance = `${handoff.acceptance} · ${note}`.slice(0, 300);
+    const decidedAt = ctx.now().toISOString();
     ctx.store.auditLog(
       { tenantId: principal.tenantId, actorId: principal.actorId, action: `handoff.${handoff.state}`, detail: handoff.id },
-      ctx.now().toISOString(),
+      decidedAt,
     );
-    return handoff;
+    const ack = buildHandoffAck(
+      { handoffId: handoff.id, tenantId: principal.tenantId, decision, actorId: principal.actorId, decidedAt },
+      options.ackSecret,
+    );
+    return { ...handoff, ack };
+  }
+
+  /**
+   * Verifica un ACK recibido del servicio hermano. Sin secreto configurado no
+   * se puede verificar: devolver `true` sería aceptar una firma inexistente.
+   */
+  function verifyAck(principal: Principal, handoffId: string, input: { decision: 'accept' | 'reject'; actorId: string; decidedAt: string; signature: string }) {
+    const handoff = ctx.store.handoffs.find((h) => h.tenantId === principal.tenantId && h.id === handoffId);
+    if (!handoff) throw new MarketingError('NOT_FOUND', 'handoff_not_found');
+    if (!options.ackSecret) throw new MarketingError('UNAVAILABLE', 'ack_signing_unconfigured');
+    const expectedDecision = handoff.state === 'accepted' ? 'accept' : handoff.state === 'rejected' ? 'reject' : null;
+    if (!expectedDecision) return { valid: false as const, reason: `handoff_${handoff.state}` };
+    if (input.decision !== expectedDecision) return { valid: false as const, reason: 'decision_mismatch' };
+    const ack = {
+      handoffId: handoff.id,
+      tenantId: principal.tenantId,
+      decision: input.decision,
+      actorId: input.actorId,
+      decidedAt: input.decidedAt,
+    };
+    return verifyHandoffAck(options.ackSecret, ack, input.signature)
+      ? { valid: true as const, reason: null }
+      : { valid: false as const, reason: 'signature_invalid' };
   }
 
   /** Un handoff sin ACK caduca: no se interpreta como éxito. */
@@ -256,6 +290,7 @@ export function createService(ctx: Ctx, registry: AdapterRegistry) {
     fulfilPrivacyRequest,
     proposeHandoff,
     respondHandoff,
+    verifyAck,
     expireHandoffs,
     listConflicts,
     estimateServiceCost,

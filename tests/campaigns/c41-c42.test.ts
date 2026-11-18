@@ -18,7 +18,9 @@ describe('MKT-C41 · operaciones, CI y release reversible', () => {
   it('las migraciones son reversibles por diseño y no borran historia', () => {
     const readme = readFileSync('db/README.md', 'utf8');
     expect(readme).toMatch(/rollback/i);
-    expect(readme).toMatch(/NOT_VERIFIED/);
+    // El README debe declarar el estado real: SQL verificado y API aún en memoria.
+    expect(readme).toMatch(/VERIFICADO en Postgres/);
+    expect(readme).toMatch(/sigue sin verificarse/i);
     const schema = readFileSync('db/migrations/0001_schema.sql', 'utf8');
     expect(schema).toContain('audit_log');
     expect(schema).toContain('service_events');
