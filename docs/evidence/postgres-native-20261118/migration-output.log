@@ -1,0 +1,51 @@
+CREATE EXTENSION
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+
+
+CREATE FUNCTION
+DO
+REVOKE
+GRANT
+
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "memberships" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "contacts" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "twins" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "briefs" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "audience_snapshots" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "creatives" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "claims" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "approvals" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "campaigns" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "outbound_intents" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "receipts" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "connections" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "observations" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "conversions" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "reports" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "privacy_requests" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "handoffs" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "service_events" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "audit_log" does not exist, skipping
+psql:/workspace/reviews/agntia-marketing-1a848a4/db/migrations/0002_rls.sql:31: NOTICE:  policy "tenant_isolation" for relation "idempotency_keys" does not exist, skipping

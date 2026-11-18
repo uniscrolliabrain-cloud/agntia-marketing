@@ -1,0 +1,34 @@
+{"name": "roles_are_not_superuser_or_bypassrls", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "t"}
+{"name": "api_reads_only_tenant_a_contacts", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "tenant_a"}
+{"name": "worker_reads_only_tenant_b_contacts", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "tenant_b"}
+{"name": "missing_tenant_reads_zero", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "0"}
+{"name": "empty_tenant_reads_zero", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "0"}
+{"name": "set_local_tenant_does_not_leak_after_commit", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "1\n0"}
+{"name": "force_rls_applies_to_non_superuser_table_owner", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "tenant_a"}
+{"name": "anon_cannot_read_contacts", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "42501", "exit_code": 1}}
+{"name": "insert_other_tenant_rejected", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "42501", "exit_code": 1}}
+{"name": "update_row_tenant_rejected", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "42501", "exit_code": 1}}
+{"name": "update_other_tenant_affects_zero", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "0"}
+{"name": "delete_other_tenant_affects_zero", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": "0"}
+{"name": "all_tenant_id_tables_isolate_both_roles", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"tables": 20, "roles": 2, "cross_tenant_rows": 0}}
+{"name": "tenant_directory_does_not_reveal_other_tenant", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "expected='0', actual='1'"}
+{"name": "campaign_fk_brief_id_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "campaign_fk_audience_snapshot_id_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "campaign_fk_creative_id_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "campaign_fk_approval_ref_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "intent_campaign_fk_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "receipt_intent_fk_rejects_cross_tenant", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23503", "exit_code": 1}}
+{"name": "intent_approval_fk_rejects_cross_tenant", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "intent_snapshot_fk_rejects_cross_tenant", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "intent_subject_fk_rejects_cross_tenant", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "application_can_append_audit_with_generated_sequence", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "ERROR:  42501: permission denied for sequence audit_log_seq_seq\nLOCATION:  nextval_internal, sequence.c:676\n"}
+{"name": "audit_log_cannot_be_updated_by_application_role", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "audit_log_cannot_be_deleted_by_worker_role", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "membership_role_cannot_be_self_escalated_by_data_role", "status": "FAIL", "scope": "MIGRATIONS_REAL_DB", "detail": "SQL succeeded but was required to reject"}
+{"name": "duplicate_operation_key_rejected", "status": "PASS", "scope": "MIGRATIONS_REAL_DB", "detail": {"sqlstate": "23505", "exit_code": 1}}
+{"name": "failed_transaction_leaves_no_partial_approval", "status": "PASS", "scope": "POSTGRES_TRANSACTION_PRIMITIVE", "detail": {"sqlstate": "23503", "partial_approval_rows": 0}}
+{"name": "skip_locked_two_connections_one_intent", "status": "PASS", "scope": "LAB_SQL_SPECIMEN_NOT_PRODUCT_WORKER", "detail": {"first": "race_1|1", "competing_result": "", "competing_seconds": 0.0098, "persisted": "race_1|leased|1", "external_sends": 0}}
+{"name": "skip_locked_two_connections_make_disjoint_progress", "status": "PASS", "scope": "LAB_SQL_SPECIMEN_NOT_PRODUCT_WORKER", "detail": {"first": "race_1|1", "competing_result": "race_2|1", "competing_seconds": 0.0083, "persisted": "race_1|leased|1\nrace_2|leased|1", "external_sends": 0}}
+{"name": "injected_migration_failure_rolls_back_ddl", "status": "PASS", "scope": "POSTGRES_TRANSACTION_PRIMITIVE", "detail": {"failure_exit_code": 3, "tables_after_rollback": 0, "transaction_wrapper": "harness --single-transaction"}}
+{"name": "native_dump_restore_preserves_suppression_revocation_receipt_and_rls", "status": "PASS", "scope": "NATIVE_BACKUP_NOT_PRODUCT_RESTORE_WORKFLOW", "detail": {"restored": {"suppressed": "t", "revoked": "t", "confirmed": "confirmed", "receipts": "1", "audit": "preserve me"}, "sha256": "eefec42c77f4da64d2f7f099abd6b341c15543fe8123ba7216e1b8090368814e", "worker_executed": false}}
+{"passed": 27, "failed": 8}
