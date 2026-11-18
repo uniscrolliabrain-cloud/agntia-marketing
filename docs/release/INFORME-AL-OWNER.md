@@ -1,3 +1,6 @@
+> **AVISO DE DOCUMENTO HISTÓRICO · 2026-11-18 — NO REPRESENTA EL ESTADO ACTUAL**  
+> Este informe describe la entrega documental original y afirma que no existía implementación. Posteriormente `main` incorporó código en API, core, SDK, worker, portal y pruebas. Consultar `docs/evidence/ANEXO-42-FASES.md`: 23 DONE, 15 PARTIAL, 4 BLOCKED, 101 tests declarados. No se han verificado aquí las pruebas, Postgres ni proveedores externos. Conservar el cuerpo como evidencia histórica, no usarlo como baseline actual para Freebuff/Codex.  
+
 # Entrega 3/9 · agntia-marketing
 
 Se entrega un diseño documental de empresa SaaS especialista en marketing y medición, integrable con AgntiaPro y apta como diseño para clientes externos. La aspiración toma referentes líderes, sin afirmar paridad actual o resultados comerciales garantizados.
