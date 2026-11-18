@@ -1,0 +1,19 @@
+
+ RUN  v2.1.9 /workspace/chats/805d32fda8bf94c57eaad33c
+
+ ✓ tests/db/postgres.test.ts (18 tests) 562ms
+ ✓ tests/campaigns/c11-c20.test.ts (20 tests) 188ms
+ ✓ tests/campaigns/c01-c10.test.ts (26 tests) 151ms
+ ✓ tests/campaigns/c31-c40.test.ts (17 tests) 177ms
+ ✓ tests/campaigns/c21-c30.test.ts (17 tests) 168ms
+ ✓ tests/db/admin-api.test.ts (6 tests) 223ms
+ ✓ tests/campaigns/hardening.test.ts (13 tests) 185ms
+ ✓ tests/db/api-principals.test.ts (6 tests) 130ms
+ ✓ tests/campaigns/handoff-ack.test.ts (6 tests) 52ms
+ ✓ tests/campaigns/c41-c42.test.ts (8 tests) 15ms
+
+ Test Files  10 passed (10)
+      Tests  137 passed (137)
+   Start at  16:51:43
+   Duration  5.41s (transform 459ms, setup 0ms, collect 1.51s, tests 1.85s, environment 2ms, prepare 637ms)
+

@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "622d9e0e9ae097f9daffb7027912dc5c42dfec05",
+  "reviewed_source": "working tree over main 622d9e0 (principals desde Postgres + humo HTTP del endpoint administrativo)",
+  "sources": {
+    "apps/api/src/principals.ts": {
+      "sha256": "fc26f4fe077512aeb103ce8c62d345d7da648a90dc03fbd21c99b5f343f182ba"
+    },
+    "apps/api/src/app.ts": {
+      "sha256": "833e5af827443fdeb313eb83b3ac776a0365ed11b7a4fa16b638343e36b5ca53"
+    },
+    "apps/api/src/server.ts": {
+      "sha256": "0fbab22ab77c53760bc683c8ee1ede83e09b94961b06807d1d278ef4797734d9"
+    },
+    "packages/core/src/authority.ts": {
+      "sha256": "547d98cb1654add71ac7fb8cb8a5c91651fdc7530f09032778f354c355cd3d64"
+    },
+    "tests/db/api-principals.test.ts": {
+      "sha256": "d79164b76db1e1e5d5b620bbef0e5e025639bbd2d64a18c6248a524107aa5220"
+    }
+  },
+  "postgres": {
+    "version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "port": 55432,
+    "database": "agntia_final",
+    "docker_used": false,
+    "login_role": "postgres (superusuario del sandbox) con SET LOCAL ROLE authenticated / marketing_admin"
+  },
+  "server": {
+    "command": "DATABASE_URL=... PORT=8791 DEV_JWT_SECRET=<local> npx tsx apps/api/src/server.ts",
+    "processes": [
+      { "id": "tanda A", "pid": 34702 },
+      { "id": "tanda B (tras reinicio)", "pid": 34778 }
+    ],
+    "port_freed_between_runs": true,
+    "jwt": "HS256 local (DEV_JWT_SECRET), issuer https://local.invalid/auth/v1, aud authenticated"
+  },
+  "runs": [
+    { "suite": "tests/db/api-principals.test.ts", "tests": 6, "pass": 6, "fail": 0 },
+    { "suite": "npx vitest run (completa, con DATABASE_URL)", "tests": 137, "pass": 137, "fail": 0 }
+  ],
+  "typecheck": {
+    "command": "npx tsc -p tsconfig.json --noEmit",
+    "exit_code": 0
+  },
+  "claims_verified": [
+    "El servidor HTTP real autoriza con tenant y membership leídos de Postgres.",
+    "POST /v1/marketing/admin/actions escribe por marketing_admin sobre admin_actions y aplica el efecto.",
+    "La repetición con la misma Idempotency-Key tras reiniciar el proceso devuelve replayed:true y affected:0 con una sola fila.",
+    "El aislamiento entre dos tenants se sostiene por red, no sólo en SQL.",
+    "La base caída produce 503 principal_lookup_failed, no autorización con datos viejos."
+  ],
+  "gates": {
+    "MKT-C06-G03": "PASS (sin cambio de estado; se estrecha el límite: la autorización ya no depende de memoria)",
+    "MKT-C06-G01": "PARTIAL (el camino de datos de producto sigue en memoria)",
+    "MKT-C06-G02": "PARTIAL (sin adaptador de producto)",
+    "MKT-C22-G01": "NOT_VERIFIED_PRODUCT (sin worker ni proveedor real)",
+    "MKT-C22-G02": "NOT_VERIFIED_PRODUCT",
+    "MKT-C41-G01": "NOT_VERIFIED (sin proveedor real)"
+  },
+  "limitations": [
+    "Sólo la autorización vive en Postgres; campañas, intents y receipts siguen en MemoryStore y un reinicio los pierde.",
+    "La repetición dentro del mismo proceso la responde la caché de operaciones en memoria; la durable se comprobó tras reinicio.",
+    "JWT HS256 de desarrollo: el JWKS asimétrico de Supabase no se ejerció.",
+    "El rol de login del sandbox es superusuario; falta validar un login no privilegiado miembro de authenticated y marketing_admin.",
+    "Sin worker, proveedor real, UI ni despliegue."
+  ]
+}

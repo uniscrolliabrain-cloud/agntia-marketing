@@ -78,13 +78,46 @@ const EFFECT_ROLES = new Set(['owner', 'operator']);
 // campaña: un operator no cambia roles ni el plan de su propio tenant.
 const ADMIN_ROLES = new Set(['owner']);
 
+/**
+ * Hechos de autorización ya resueltos: si el tenant del JWT existe y cuál es su
+ * membership para el actor. Separarlos de la fuente permite que el API los lea
+ * de Postgres sin duplicar ni una regla: `resolvePrincipal` (memoria) y el
+ * borde asíncrono del API (`apps/api/src/principals.ts`) llegan a la misma
+ * función de decisión.
+ */
+export interface PrincipalFacts {
+  tenantExists: boolean;
+  membership: Membership | undefined;
+}
+
 export function resolvePrincipal(ctx: Ctx, jwt: VerifiedJwt, capability: Capability): Principal {
+  return principalFromFacts(
+    ctx,
+    jwt,
+    {
+      tenantExists: ctx.store.tenants.has(jwt.tenantId),
+      membership: ctx.store.memberships.find((m) => m.tenantId === jwt.tenantId && m.actorId === jwt.sub),
+    },
+    capability,
+  );
+}
+
+/**
+ * Decisión única de autorización: expiración, tenant, membership, scopes y rol.
+ * No hay fallback a owner/default ni permiso escrito por el cliente.
+ */
+export function principalFromFacts(
+  ctx: Pick<Ctx, 'now'>,
+  jwt: VerifiedJwt,
+  facts: PrincipalFacts,
+  capability: Capability,
+): Principal {
   const parsed = CapabilitySchema.safeParse(capability);
   if (!parsed.success) throw new MarketingError('FORBIDDEN', 'unknown_capability');
   if (jwt.expiresAt * 1000 <= ctx.now().getTime()) throw new MarketingError('AUTH_REQUIRED', 'token_expired');
-  if (!ctx.store.tenants.has(jwt.tenantId)) throw new MarketingError('AUTH_REQUIRED', 'tenant_unknown');
+  if (!facts.tenantExists) throw new MarketingError('AUTH_REQUIRED', 'tenant_unknown');
 
-  const membership = ctx.store.memberships.find((m) => m.tenantId === jwt.tenantId && m.actorId === jwt.sub);
+  const membership = facts.membership;
   if (!membership) throw new MarketingError('FORBIDDEN', 'no_membership');
 
   const principal: Principal = {

@@ -67,6 +67,7 @@ import {
 } from '@agntia/core';
 import type { JwtVerifier } from './auth';
 import type { AdminAction, AdminPort } from './admin';
+import type { PrincipalResolver } from './principals';
 
 export interface AppDeps {
   ctx: Ctx;
@@ -81,6 +82,12 @@ export interface AppDeps {
    * Sin ella la ruta administrativa responde 424: no se simula en memoria.
    */
   admin?: AdminPort;
+  /**
+   * Resolución de tenant y membership en Postgres. Sin ella el principal se
+   * deriva del store en memoria (correcto para pruebas, vacío en el proceso
+   * real: ahí se inyecta `createPgPrincipalResolver`).
+   */
+  principals?: PrincipalResolver;
 }
 
 interface Vars {
@@ -104,6 +111,12 @@ export function createApp(deps: AppDeps) {
   const { ctx, registry } = deps;
   const service = createService(ctx, registry, { ...(deps.ackSecret ? { ackSecret: deps.ackSecret } : {}) });
   const app = new Hono<{ Variables: Vars }>();
+
+  /** Tenant y membership: de Postgres si el borde lo tiene, si no de memoria. */
+  const resolveActor = (c: Context, capability: Capability): Principal | Promise<Principal> => {
+    const jwt = c.get('jwt') as Vars['jwt'];
+    return deps.principals ? deps.principals.resolve(jwt, capability) : resolvePrincipal(ctx, jwt, capability);
+  };
 
   const idempotency = (c: Context) => {
     const key = c.req.header('idempotency-key');
@@ -142,7 +155,7 @@ export function createApp(deps: AppDeps) {
     handler: (principal: Principal, body: TBody, c: Context) => TResult,
   ) {
     return async (c: Context) => {
-      const principal = resolvePrincipal(ctx, c.get('jwt') as Vars['jwt'], capability);
+      const principal = await resolveActor(c, capability);
       let decision;
       try {
         decision = await rateLimiter.consume(principal.tenantId, RATE_LIMIT_PER_MINUTE, ctx.now().getTime());
@@ -162,8 +175,8 @@ export function createApp(deps: AppDeps) {
 
   /** Lectura: mismo PEP, sin idempotencia ni envelope de escritura. */
   function read<TResult>(capability: Capability, handler: (principal: Principal, c: Context) => TResult) {
-    return (c: Context) => {
-      const principal = resolvePrincipal(ctx, c.get('jwt') as Vars['jwt'], capability);
+    return async (c: Context) => {
+      const principal = await resolveActor(c, capability);
       return c.json(handler(principal, c), 200);
     };
   }

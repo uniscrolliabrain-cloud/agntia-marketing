@@ -62,10 +62,12 @@ no sólo en el clúster local.
 
 ## Límites que quedan abiertos
 
-- **La membership se lee del store en memoria**, igual que en el resto del API:
-  el endpoint persiste en Postgres pero autoriza con `ctx.store.memberships`.
-  Cuando aterrice la persistencia (`0007+`) esa lectura pasa a Postgres; hasta
-  entonces `MKT-C06-G01/G02` siguen en `PARTIAL`.
+- **La membership se lee del store en memoria** *(estado anterior: corregido el
+  mismo 2026-11-18 en `docs/evidence/admin-api-http-20261118/`, donde el API
+  resuelve tenant y membership desde Postgres y se ejerce por red)*. Entonces el
+  endpoint persistía en Postgres pero autorizaba con `ctx.store.memberships`; el
+  camino de datos de producto sigue en memoria, así que `MKT-C06-G01/G02`
+  conservan `PARTIAL`.
 - **El rol de login del API debe ser miembro de `marketing_admin`**
   (`grant marketing_admin to <rol>`). Sin esa concesión la ruta responde
   `424 admin_role_not_granted`; no se cae a escrituras directas.

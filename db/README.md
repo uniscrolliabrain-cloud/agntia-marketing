@@ -131,6 +131,30 @@ ruta responde `424 admin_role_not_granted`:
 grant marketing_admin to <rol_de_login_del_api>;
 ```
 
+### Autorización: tenant y membership desde Postgres
+
+Desde el 2026-11-18 el API no deriva el principal del store en memoria. Con
+`DATABASE_URL` (`apps/api/src/principals.ts`) lee `tenants` y `memberships`
+**como rol `authenticated`**, fijando `app.tenant_id` con el tenant del JWT
+verificado, así que la policy RLS decide. Los hechos (¿existe el tenant? ¿qué
+membership tiene el actor?) se entregan a `principalFromFacts`, la misma función
+de decisión que usa el dominio: no hay una segunda regla de autorización.
+
+- **Sin caché**: revocar una membership en la base surte efecto en la petición
+  siguiente.
+- **Falla cerrado**: si la base no responde, `503 principal_lookup_failed`; no se
+  autoriza con datos viejos.
+- **Rol de login**: debe poder asumir `authenticated`
+  (`grant authenticated to <rol>`). Si no puede, `424 principal_role_not_assumable`.
+- Valores que el dominio no conoce se descartan: un rol inventado o un scope que
+  no es una capacidad válida terminan en `403`, nunca en un permiso concedido.
+- Sin `DATABASE_URL` el proceso avisa `principals=memory` y el store arranca
+  vacío: no hay ruta autenticada que fingir.
+
+Lo que sigue en memoria es el **estado de producto** (campañas, intents,
+receipts, audiencias): un reinicio lo pierde. Ver
+`docs/evidence/admin-api-http-20261118/` para el humo por red y sus límites.
+
 **Antes de aplicar `0005` sobre datos existentes** hay que resolver las
 referencias huérfanas; si no, la FK falla (correctamente) con `23503`:
 

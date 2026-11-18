@@ -6,6 +6,7 @@ import { createStore } from '@agntia/core';
 import { PgAdminService } from './admin';
 import { createApp } from './app';
 import { createSupabaseJwtVerifier } from './auth';
+import { createPgPrincipalResolver } from './principals';
 import { PgRateLimiter } from './ratelimit-pg';
 
 /**
@@ -43,6 +44,11 @@ const rateLimiter = pool ? new PgRateLimiter(pool) : undefined;
 if (!rateLimiter) console.warn('rate_limiter=memory: el límite no se comparte entre instancias');
 const admin = pool ? new PgAdminService(pool) : undefined;
 if (!admin) console.warn('admin_api=unconfigured: POST /v1/marketing/admin/actions responde 424');
+// Con `DATABASE_URL` el tenant y la membership se leen de `tenants`/`memberships`
+// (rol `authenticated` + RLS). Sin ella el store arranca vacío y ningún token
+// pasaría de `tenant_unknown`: el aviso lo dice en vez de fingir autenticación.
+const principals = pool ? createPgPrincipalResolver(pool) : undefined;
+if (!principals) console.warn('principals=memory: el store está vacío y no hay ruta autenticada');
 
 const ackSecret = process.env.HANDOFF_ACK_SECRET;
 if (!ackSecret) console.warn('handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs');
@@ -54,6 +60,7 @@ const app = createApp({
   verifier,
   ...(rateLimiter ? { rateLimiter } : {}),
   ...(admin ? { admin } : {}),
+  ...(principals ? { principals } : {}),
   ...(ackSecret ? { ackSecret } : {}),
 });
 app.use('/portal/*', serveStatic({ root: './apps/portal/public', rewriteRequestPath: (p) => p.replace(/^\/portal/, '') || '/' }));

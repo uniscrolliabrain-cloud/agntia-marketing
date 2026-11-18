@@ -2,7 +2,7 @@
   {
     "id": "MKT-C06-G01",
     "status": "PARTIAL",
-    "reason": "FK compuestas y permisos verificados en SQL nativo; el camino API-to-Postgres sigue ausente"
+    "reason": "FK compuestas y permisos verificados en SQL nativo; la vía administrativa y la resolución de tenant/membership ya van por Postgres (2026-11-18), pero el camino de datos de producto (campañas, intents, receipts, audiencias) sigue en memoria"
   },
   {
     "id": "MKT-C06-G02",
@@ -12,7 +12,7 @@
   {
     "id": "MKT-C06-G03",
     "status": "PASS",
-    "reason": "POST /v1/marketing/admin/actions escribe por marketing_admin con admin_actions y se ejerció contra Postgres real (tests/db/admin-api.test.ts, 6 pruebas; docs/evidence/admin-api-20261118). El tenant y el actor se resuelven del JWT verificado + membership en memoria: el camino de datos sigue sin persistencia (G01/G02)"
+    "reason": "POST /v1/marketing/admin/actions escribe por marketing_admin con admin_actions y se ejerció contra Postgres real (tests/db/admin-api.test.ts, 6 pruebas; docs/evidence/admin-api-20261118). Desde 2026-11-18 el tenant y el actor se resuelven del JWT verificado + membership leída de Postgres, y el endpoint se ejerció por red con reinicio (docs/evidence/admin-api-http-20261118). El camino de datos de producto sigue sin persistencia (G01/G02)"
   },
   {
     "id": "MKT-C22-G01",

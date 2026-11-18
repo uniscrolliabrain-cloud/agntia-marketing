@@ -192,3 +192,28 @@ Nada de esto se ha hecho todavía: no hay código de persistencia en este repo, 
 eso `MKT-C06-G01`, `MKT-C22-G01` y `MKT-C22-G02` siguen en `PARTIAL` /
 `NOT_VERIFIED_PRODUCT`. Lo que sí está hecho y no hay que repetir es toda la capa
 SQL (`0001`–`0006`), sus pruebas y la evidencia del runner nativo.
+
+### Actualización 2026-11-18: la autorización ya no depende de la memoria
+
+Antes de la rebanada de datos se cerró un hueco que la bloqueaba. El proceso
+arrancaba con `createStore()` vacío, así que `resolvePrincipal` no encontraba ni
+tenant ni membership y **toda** ruta autenticada respondía `401 tenant_unknown`
+por HTTP: la membership que `0005`/`0006` administran en Postgres no se leía.
+
+Ahora `apps/api/src/principals.ts` implementa `PrincipalResolver`: lee `tenants` y
+`memberships` como rol `authenticated` con `app.tenant_id` fijado (RLS decide) y
+entrega los hechos a `principalFromFacts`, la misma función que usa el dominio.
+Sin caché (revocar surte efecto en la petición siguiente), fail-closed (`503`) si
+la base no responde y `424` si el login no puede asumir `authenticated`.
+
+Lo verificado: humo por red con el servidor real, dos tenants, `audit.purge` y
+`tenant.set-plan` por `marketing_admin`, `operator` rechazado y **repetición tras
+reinicio** con `replayed:true / affected:0` y una sola fila por ticket
+(`docs/evidence/admin-api-http-20261118/`, 137/137 pruebas, `tsc` exit 0).
+
+Lo que **no** cambia: el estado de producto (campañas, intents, receipts,
+audiencias) sigue en `MemoryStore`. La opción A de arriba, paso 1 —campaña →
+commit → lease → delivery → receipt en Postgres—, sigue entera, y por eso
+`MKT-C06-G01/G02` y `MKT-C22-G01/G02` conservan su estado. La aceptación 4
+(aislamiento a través del API con datos reales) queda cubierta para la vía
+administrativa y la resolución de principal, no para el camino de entrega.
