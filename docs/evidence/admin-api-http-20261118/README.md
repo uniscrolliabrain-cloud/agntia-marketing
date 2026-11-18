@@ -53,6 +53,12 @@ Estado final en Postgres (`run.log`, sección «efecto durable»):
 Suite y tipos en esta misma pasada: `137/137` con `DATABASE_URL` (6 nuevas de
 `tests/db/api-principals.test.ts`) y `npx tsc -p tsconfig.json --noEmit` exit 0.
 
+CI sobre `bf12970` (run
+[44352183169](https://github.com/uniscrolliabrain-cloud/agntia-marketing/actions/runs/44352183169)):
+`verify` y `database` en **success**. El job `database` levanta `postgres:16`,
+migra y corre la suite completa, así que las 6 pruebas nuevas también pasan allí
+(`ci.json`).
+
 ## Límites que siguen abiertos
 
 - **Sólo la autorización va por Postgres.** Campañas, intents, receipts,
@@ -96,5 +102,7 @@ código de producción al repositorio. `run.log` es su salida íntegra.
 ## Evidencia incluida
 
 - `run.log`: arranque, tanda A, reinicio verificado, tanda B y estado durable.
+- `full-suite.log`: la suite completa, 137/137.
+- `ci.json`: el run de GitHub Actions sobre este commit (`verify` y `database`).
 - `provenance.json`: SHA base, hashes de las fuentes y del test, versión de
   Postgres y límites declarados.

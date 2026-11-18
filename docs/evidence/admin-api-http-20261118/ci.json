@@ -1,0 +1,29 @@
+{
+  "provider": "github-actions",
+  "workflow": "ci",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "head_sha": "bf129704b497d33f2a3db20cd344b88b9c652a75",
+  "run_id": 44352183169,
+  "run_number": 51,
+  "attempt": 1,
+  "event": "push",
+  "branch": "main",
+  "status": "completed",
+  "conclusion": "success",
+  "started_at": "2026-11-18T16:52:10Z",
+  "updated_at": "2026-11-18T16:53:00Z",
+  "html_url": "https://github.com/uniscrolliabrain-cloud/agntia-marketing/actions/runs/44352183169",
+  "jobs": [
+    {
+      "name": "verify",
+      "conclusion": "success",
+      "steps_ok": ["npm ci", "npm run typecheck", "npm test"]
+    },
+    {
+      "name": "database",
+      "conclusion": "success",
+      "steps_ok": ["npm ci", "npm run db:migrate", "npm test"],
+      "note": "Corre contra el servicio postgres:16 del workflow con DATABASE_URL, así que las 6 pruebas de tests/db/api-principals.test.ts también pasan en CI, no sólo en el clúster local."
+    }
+  ]
+}
