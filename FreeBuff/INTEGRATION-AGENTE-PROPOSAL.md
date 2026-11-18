@@ -81,7 +81,7 @@ Todo `effect` exige humano con rol owner/operator y aprobación previa vinculada
 | Dependencia | Estado | Integración propuesta |
 |---|---|---|
 | JWT Supabase | HS256 verificado; RS256 sin probar | El padre emite/valida el mismo issuer; marketing sólo verifica |
-| Postgres + RLS | Escrito, no ejecutado | Base por tenant, `tenant_id` en toda tabla, políticas RLS |
+| Postgres + RLS | Ejecutado y verificado en 16.15 (API/worker aún en memoria) | Base por tenant, `tenant_id` en toda tabla, políticas RLS |
 | Outbox | En memoria | Tabla `outbound_intents` con `FOR UPDATE SKIP LOCKED` y fence |
 | Bus de eventos | Inexistente | Publicar eventos al bus del padre con `correlationId` |
 | Anam | Stub | Token de sesión emitido por el padre, no por marketing |

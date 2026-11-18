@@ -16,8 +16,9 @@ No es un MVP ni un rediseño: es conectar lo que ya existe y está probado.
 
 ## 2. Qué ya está hecho (no lo rehagas)
 
-- `db/migrations/0001_schema.sql` … `0004_rate_limit.sql` aplican en un Postgres
-  limpio y están cubiertas por `tests/db/postgres.test.ts` (13 pruebas).
+- `db/migrations/0001_schema.sql` … `0006_admin_flows.sql` aplican en un Postgres
+  limpio y están cubiertas por `tests/db/postgres.test.ts` (18 pruebas) y por el
+  runner nativo (39/39, `docs/evidence/admin-flows-20261118/`).
 - RLS **forzada** en las 21 tablas con `tenant_id`, policy `tenant_isolation`
   contra `app_current_tenant()`, y contrato de sesión `set local app.tenant_id`.
 - Outbox con `journey_step_id`, `scheduled_for`, índice parcial de vencimientos,
@@ -70,10 +71,12 @@ No es un MVP ni un rediseño: es conectar lo que ya existe y está probado.
 
 ## 4. Reglas del repo que no debes romper
 
-- **Numeración de migraciones:** empieza en `0006_`. `0001`–`0004` están tomadas y
+- **Numeración de migraciones:** empieza en `0007_`. `0001`–`0004` están tomadas,
   `0005_db_hardening.sql` corrige los hallazgos PG-01…PG-08 de la revisión nativa
   (RLS de `tenants`, FK compuestas de `outbound_intents`, auditoría append-only y
-  permisos mínimos). No la reescribas: es aditiva e idempotente.
+  permisos mínimos) y `0006_admin_flows.sql` añade el rol `marketing_admin`, el
+  registro `admin_actions` y los triggers que exigen ticket y registro previos.
+  No las reescribas: son aditivas e idempotentes.
 - **No toques** `packages/core/src/store.ts` en su interfaz pública, ni los
   contratos de `packages/contracts`, ni `apps/api/src/app.ts` salvo lo mínimo para
   inyectar el repositorio.
@@ -89,7 +92,7 @@ No es un MVP ni un rediseño: es conectar lo que ya existe y está probado.
 ## 5. Criterios de aceptación
 
 1. `npx tsc -p tsconfig.json --noEmit` limpio.
-2. `DATABASE_URL=… npx vitest run` en verde, incluidas las 13 pruebas de
+2. `DATABASE_URL=… npx vitest run` en verde, incluidas las 18 pruebas de
    `tests/db/postgres.test.ts` y sin regresiones en las 107 restantes.
 3. Un test nuevo que arranque el API con el repositorio Postgres, haga un ciclo
    campaña → commit → lease → delivery sandbox y compruebe que un reinicio del
@@ -125,6 +128,10 @@ un verde local sin `DATABASE_URL` **no** prueba persistencia.
   auditado, no una escritura del repositorio. `audit_log` es append-only (sin
   `update`/`delete`), pero el INSERT normal funciona porque la secuencia tiene
   `usage`; no hace falta suministrar `seq`.
+- Ese flujo ya existe desde `0006`: `marketing_admin` + `admin_actions`, con
+  `app.admin_ticket` y `app.admin_actor` fijados en la misma transacción. Si tu
+  repositorio necesita purgar auditoría o cambiar membresías, **no añadas grants al
+  rol de datos**: usa ese camino (ver `db/README.md`).
 - RLS está **forzada**: el owner de la tabla tampoco se libra. Los tests usan
   `set local role authenticated`; el superusuario sí la salta, no lo uses para
   "verificar" aislamiento.
@@ -135,6 +142,48 @@ un verde local sin `DATABASE_URL` **no** prueba persistencia.
 
 ## 8. Entregable
 
-Un PR con: repositorio Postgres, scheduler persistente, migraciones `0005+`,
+Un PR con: repositorio Postgres, scheduler persistente, migraciones `0007+`,
 pruebas nuevas, `db/README.md` actualizado y el reporte de fase (C19/C22) con SHA
 inicial y final, archivos tocados, tests ejecutados y límites que queden abiertos.
+
+## 9. Hallazgo bloqueante: el repositorio Postgres no es «drop-in»
+
+La sección 3.1 pide un repositorio que cumpla «la misma interfaz de dominio» sin
+cambiar firmas. **Tal como está escrito, eso no se puede hacer.** No es una
+cuestión de esfuerzo, es de forma de la interfaz:
+
+- `Ctx.store` es hoy un objeto **síncrono** (`packages/core/src/store.ts`): arrays
+  públicos y un `Map`. El dominio lee y **muta** esos arrays en el sitio, sin
+  `await`.
+- Hay **121 accesos `ctx.store.*`** repartidos en **9 módulos** (`campaigns.ts` 37,
+  `delivery.ts` 22, `consent.ts` 17, `service.ts` 15, `campaigns`/`measurement` 8,
+  `authority.ts` 8, `app.ts` 10, `main.ts` 3, `store.ts` 1). Casi todos son
+  mutaciones (`intent.state = …`, `ctx.store.receipts.push(…)`).
+- `pg` es asíncrono: `pool.query` devuelve una promesa. Un repositorio real no
+  puede devolver filas de forma síncrona sin bloquear el event loop (no existe un
+  cliente Postgres síncrono en Node que sea aceptable en producción).
+- El requisito de `for update skip locked` (§3.1) **exige** control explícito de la
+  transacción en el momento del efecto, es decir, `await` en el camino de entrega.
+
+Conclusión: el «mismo interfaz» es incompatible con un driver asíncrono. Hay tres
+caminos y ninguno es un repositorio que se enchufa sin tocar firmas:
+
+| Opción | Qué implica | Coste | Riesgo |
+|---|---|---|---|
+| **A. Migrar el dominio a asíncrono** (recomendada) | `Ctx.store` pasa a devolver promesas; todos los `ctx.store.*` se vuelven `await`; las firmas cambian y las 120 pruebas se actualizan | alto: 9 módulos, 121 accesos, ~120 pruebas | el contrato cambia: hay que justificarlo y hacerlo por fases |
+| B. Repositorio asíncrono sólo en los bordes | el API/worker reclaman con SQL y el dominio sigue en memoria | medio | duplica `leaseIntents`/elegibilidad ⇒ deriva silenciosa; el handoff lo prohíbe |
+| C. Dejar `MemoryStore` | nada se rompe | nulo | C06-G01/C22-G01 siguen `NOT_VERIFIED` para siempre |
+
+**Recomendación:** opción A por rebanada vertical, no de golpe.
+
+1. Hacer asíncrona sólo la ruta campaña → commit → lease → delivery → receipt, con
+   el resto del store todavía en memoria detrás de la misma interfaz.
+2. Cerrar las aceptaciones 3 y 4 (reinicio conserva intents y auditoría; aislamiento
+   **a través del API** con datos reales) sobre esa rebanada.
+3. Extender al resto de colecciones, campaña por campaña, sin cambiar gates hasta
+   que cada una tenga su prueba de reinicio.
+
+Nada de esto se ha hecho todavía: no hay código de persistencia en este repo, y por
+eso `MKT-C06-G01`, `MKT-C22-G01` y `MKT-C22-G02` siguen en `PARTIAL` /
+`NOT_VERIFIED_PRODUCT`. Lo que sí está hecho y no hay que repetir es toda la capa
+SQL (`0001`–`0006`), sus pruebas y la evidencia del runner nativo.

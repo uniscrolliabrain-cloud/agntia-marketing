@@ -14,6 +14,13 @@ Lo que sigue sin verificarse: **el API y el worker no usan Postgres todavía**.
 La persistencia real es la campaña pendiente; hoy el dominio corre en memoria y
 estas migraciones son la base que debe consumir ese repositorio.
 
+Las operaciones que `0005` cerró al rol de datos —purga de auditoría, cambio de
+membresías y de plan— tienen desde `0006` una vía propia y auditada
+(`marketing_admin` + `admin_actions`), probada en `tests/db/postgres.test.ts`
+(18 pruebas) y en el runner nativo (39/39,
+`docs/evidence/admin-flows-20261118/`). Lo que aún no existe es el endpoint
+administrativo en el API.
+
 ## Migraciones
 
 ```bash
@@ -27,6 +34,7 @@ npm run db:migrate        # aplica db/migrations/*.sql en orden
 | `0003_intent_scheduling.sql` | `journey_step_id`, `scheduled_for`, dedupe por paso e índice de vencimientos |
 | `0004_rate_limit.sql` | `rate_limit_counters` + `consume_rate_limit(text,int,timestamptz)` |
 | `0005_db_hardening.sql` | RLS en `tenants`, FK compuestas de `outbound_intents`, auditoría append-only y permisos mínimos |
+| `0006_admin_flows.sql` | Rol `marketing_admin`, registro `admin_actions` y triggers que exigen ticket y registro previos |
 
 `0002` fallaba en un Postgres limpio (`role "anon" does not exist`) porque asumía
 un proyecto Supabase; ahora los roles se crean de forma idempotente. `0003`
@@ -49,6 +57,42 @@ RLS limita **filas**; los `GRANT` limitan **operaciones**. Hacen falta los dos.
 
 El INSERT de auditoría recibe `usage` sobre `audit_log_seq_seq` (y sólo eso), así
 que generar el siguiente `seq` no requiere privilegios de tabla adicionales.
+
+## Flujo administrativo (`0006`)
+
+Lo que `0005` le quitó al rol de datos no se hace con escrituras directas: se hace
+con un rol aparte, `marketing_admin`, y **dejando registro**.
+
+```sql
+begin;
+select set_config('app.tenant_id', '<tenant verificado>', true);
+select set_config('app.admin_ticket', 'CHG-2026-0042', true);
+select set_config('app.admin_actor', '<operador autenticado>', true);
+
+insert into admin_actions (tenant_id, id, actor_id, action, ticket, detail)
+values ('<tenant>', 'adm_0001', '<operador autenticado>', 'audit.purge',
+        'CHG-2026-0042', '{"retention_days":365}'::jsonb);
+
+delete from audit_log where tenant_id = '<tenant>' and at < now() - interval '365 days';
+commit;
+```
+
+| Operación | Acción exigida en `admin_actions` |
+|---|---|
+| `insert`/`update`/`delete` en `memberships` | `membership.%` |
+| `update`/`delete` en `tenants` (plan, nombre) | `tenant.%` |
+| `delete` en `audit_log` (purga) | `audit.purge` |
+
+Sin `app.admin_ticket`/`app.admin_actor`, o sin la fila correspondiente en
+`admin_actions`, el trigger responde `42501`. `admin_actions` no tiene `update` ni
+`delete` para ningún rol con grants: el registro no se reescribe. La garantía
+cubre los roles que se conceden a la aplicación, no a un superusuario ni a
+`BYPASSRLS`, que ya pueden saltarse RLS.
+
+La **provisión** de un tenant (`insert` en `tenants`) queda fuera del trigger a
+propósito: la fila aún no existe y el registro la referencia por FK. Es un
+bootstrap de plataforma; la acción se registra justo después, ya sobre el tenant
+nuevo.
 
 **Antes de aplicar `0005` sobre datos existentes** hay que resolver las
 referencias huérfanas; si no, la FK falla (correctamente) con `23503`:

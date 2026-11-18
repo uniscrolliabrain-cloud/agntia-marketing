@@ -103,6 +103,14 @@ Gates:
 
 Desviaciones y ajustes de diseño: El outbox es en memoria; la transacción Postgres y el `skip locked` no se ejecutaron.
 
+> **Actualización 2026-11-18.** El `SKIP LOCKED` sí se ejecutó, como espécimen SQL,
+> en el runner nativo: dos conexiones sobre un clúster real reclaman intents
+> disjuntos (`skip_locked_two_connections_one_intent` y
+> `..._make_disjoint_progress`, ambos PASS; ver
+> `docs/evidence/admin-flows-20261118/`). Lo que sigue sin existir es el **worker de
+> producto** sobre Postgres: el outbox del producto continúa en `MemoryStore`, así
+> que `MKT-C22-G01/G02` siguen `NOT_VERIFIED_PRODUCT`.
+
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Probar concurrencia de dos workers sobre Postgres real.
@@ -118,6 +126,10 @@ Estado tras hardening: DONE
 Gates: G01 y G02 siguen PASS; la revalidación añade la garantía de que una revocación posterior al commit no produce efecto.
 
 Límite que sigue abierto: El outbox sigue en memoria: `FOR UPDATE SKIP LOCKED` y la transacción Postgres no se han ejecutado.
+
+> **Actualización 2026-11-18.** Matiz: la transacción Postgres y el `SKIP LOCKED`
+> ya se ejecutaron y pasan como espécimen SQL; lo que sigue abierto es el worker de
+> producto que los use (`apps/worker` sigue con `MemoryStore`).
 
 ## Hardening 2026-11-18 (outbox en Postgres real)
 

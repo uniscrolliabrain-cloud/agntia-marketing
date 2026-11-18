@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "commit": "9cf035b735ea10133e0a86c825f07539418bf454",
+  "commit_message": "fix(db): corrige los ocho hallazgos P1 de la revisión Postgres nativa",
+  "parent": "eb421fa0c0b5c4cdd79b42d600b275f45a7f59b1",
+  "branch_pushed": "feat/marketing-42-campaigns",
+  "target_branch": "main",
+  "merge_kind": "fast-forward (sin commit de merge)",
+  "authorization": "el founder pidió en el chat empujar y mergear",
+  "files_changed": 17,
+  "insertions": 1604,
+  "deletions": 16,
+  "verification": {
+    "local_pre_merge": {
+      "tsc": "exit 0",
+      "vitest": "120/120 (8 ficheros)",
+      "native_postgres_runner": "38/38 PASS, exit 0"
+    },
+    "remote_after_push": {
+      "local_origin_main": "9cf035b735ea10133e0a86c825f07539418bf454",
+      "ahead_behind": "0 0",
+      "fetched_head": "9cf035b735ea10133e0a86c825f07539418bf454",
+      "confirmed_via": "git fetch + FETCH_HEAD; commit de main leído por la API de GitHub"
+    },
+    "github_actions": [
+      {
+        "workflow_run": 44331473031,
+        "head_sha": "9cf035b735ea10133e0a86c825f07539418bf454",
+        "jobs": [
+          { "name": "verify", "conclusion": "success", "job_id": 134896734088 },
+          { "name": "database", "conclusion": "success", "job_id": 134896733590 }
+        ]
+      },
+      {
+        "workflow_run": 44331506957,
+        "head_sha": "9cf035b735ea10133e0a86c825f07539418bf454",
+        "jobs": [
+          { "name": "verify", "conclusion": "success", "job_id": 134896843760 },
+          { "name": "database", "conclusion": "success", "job_id": 134896844484 }
+        ]
+      }
+    ],
+    "ci_database_job": "postgres:16 como servicio; aplica la cadena de migraciones y ejecuta la suite con DATABASE_URL"
+  },
+  "not_claimed": [
+    "Ningún gate se promovió a PASS por este merge.",
+    "El worker y el API siguen usando MemoryStore (persistencia de producto no implementada).",
+    "No se ejecutó ningún proveedor externo ni se envió ningún mensaje real."
+  ]
+}

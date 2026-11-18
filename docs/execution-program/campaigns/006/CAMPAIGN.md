@@ -103,6 +103,8 @@ Gates:
 
 Desviaciones y ajustes de diseño: Postgres no se pudo levantar: el esquema y RLS están escritos y testeados de forma estática, no ejecutados.
 
+> **Actualización 2026-11-18.** Se levantó Postgres 16.15 real (binarios de Ubuntu extraídos, sin Docker): seis migraciones aplican en limpio, RLS/FK/permisos y `SKIP LOCKED` pasan en el runner nativo (39/39) y `tests/db/postgres.test.ts` corre 18 pruebas contra la base. La desviación de arriba se conserva como registro histórico; lo único que sigue en pie de ella es que el API y el worker no consumen la base (`MemoryStore`). Evidencia: `docs/evidence/db-hardening-20261118/` y `docs/evidence/admin-flows-20261118/`.
+
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Ejecutar migraciones en Postgres 16 y probar aislamiento con dos roles reales.

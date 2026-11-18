@@ -28,16 +28,17 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `packages/sdk`: 8 tools allowlist.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: bucle de entrega sandbox.
-- `db/migrations`: esquema con RLS (escrito, no ejecutado).
-- `tests/`: 120 pruebas en 8 archivos (incluye integración contra Postgres real).
+- `db/migrations`: esquema con RLS forzada, hardening y flujo administrativo auditado (`0001`–`0006`), **ejecutados y verificados** en Postgres 16.15.
+- `tests/`: 125 pruebas en 8 archivos (incluye integración contra Postgres real).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables
 
 ```
 npx tsc -p tsconfig.json --noEmit   # exit 0
-npx vitest run                      # 107 passed, 13 skipped (sin DB)
-DATABASE_URL=… npx vitest run       # 120 passed (120), Postgres 16.15 real
+npx vitest run                      # 107 passed, 18 skipped (sin DB)
+DATABASE_URL=… npx vitest run       # 125 passed (125), Postgres 16.15 real
+tests/postgres/native_postgres.py   # 39/39 PASS, clúster nuevo (ver docs/evidence/admin-flows-20261118)
 ```
 
 Smoke manual: `/healthz` 200 JSON, `/portal/` 200 HTML, `/v1/marketing/me` sin
@@ -62,7 +63,9 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 3. Rate limit: el contador compartido existe y está probado; falta despliegue multi-instancia.
 4. Aprobación de journey por revisión completa, no por paso.
 5. Sin firma en los ACK de handoff entre servicios.
-6. CI definido pero no ejecutado en GitHub.
+6. CI **ejecutado** en GitHub Actions sobre `9cf035b`: `verify` y `database` en
+   success, este último con `postgres:16` como servicio. Ver
+   `docs/evidence/merge-20261118/`.
 
 ## 9. Preparación para Doppler
 
@@ -78,14 +81,18 @@ cambios propuestos en `agente`. Ninguno aplicado.
 
 ## 11. Estado de CI y PR
 
-- Workflow `.github/workflows/ci.yml` con install, typecheck y test.
-- Rama `feat/marketing-42-campaigns`; **sin push y sin PR**.
-- El merge a `main` queda a tu autorización expresa.
+- Workflow `.github/workflows/ci.yml` con install, typecheck, test y un job
+  `database` con `postgres:16` como servicio.
+- **Mergeado en `main`**: `9cf035b` (fast-forward desde `feat/marketing-42-campaigns`),
+  con `verify` y `database` en success sobre ese SHA
+  (`docs/evidence/merge-20261118/`).
+- El merge lo autorizaste en el chat; no hay despliegue ni publicación.
 
 ## 12. Recomendación de siguiente paso
 
 1. Revisar la matriz y los 84 gates; decidir qué `PARTIAL` aceptas como deuda.
-2. Autorizar push y PR para que la CI corra en GitHub.
+2. ~~Autorizar push y PR para que la CI corra en GitHub.~~ Hecho: `9cf035b` está en
+   `main` y CI pasó en GitHub.
 3. Completar la persistencia del API/worker sobre el Postgres ya verificado (handoff en `FreeBuff/HANDOFF-PERSISTENCIA-Y-SCHEDULER.md`).
 4. Elegir un proveedor de email real y sustituir el sandbox en staging.
 5. Sólo después, valorar despliegue y conexión con `agente`.

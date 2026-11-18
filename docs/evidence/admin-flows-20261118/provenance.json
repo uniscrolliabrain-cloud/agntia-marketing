@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "9cf035b735ea10133e0a86c825f07539418bf454",
+  "reviewed_source": "working tree over main 9cf035b (migraci\u00f3n 0006 + pruebas del flujo administrativo)",
+  "sources": {
+    "db/migrations/0006_admin_flows.sql": {
+      "sha256": "19e370525c99d3031615b77403fcaaaea7a745e0e1b246aa163ba04e05726474",
+      "git_blob": "8a8b89fd57f1bf9a7bdc90bea531a2fc326dbe4b"
+    },
+    "tests/db/postgres.test.ts": {
+      "sha256": "41c9eaf0bab0b4492fd608376b15e90143b9ecb2301215b0c39455a0d135b287",
+      "git_blob": "66c832b79794a9605afb0945b51180d2c584a97c"
+    },
+    "tests/support/db.ts": {
+      "sha256": "41a36b719a7845bf5bd3745529bf688e8d76a0832f6c1ac09245e42337930aba",
+      "git_blob": "9dd8d0454c9170e09cbdb1c7775e438ba536fe19"
+    },
+    "tests/postgres/native_postgres.py": {
+      "sha256": "761d5356a6d54b420220bd9fb138487ab420bf670b642a8cdcea88afac5d639c",
+      "git_blob": "c14dbaa50db238366f60ae5e40c2e89e9bc5e92f"
+    },
+    "db/README.md": {
+      "sha256": "9ac634288922bfaea42005cc96d2e3a3e9e5c0957f9b6ac3c1a999c1cf1641aa",
+      "git_blob": "e34c52ad34bf8f1a1f5e74922807eaa06e6138b7"
+    }
+  },
+  "postgres": {
+    "version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "source": "Ubuntu 24.04 packages postgresql-16 (extracted in user space)",
+    "docker_used": false,
+    "system_install": false,
+    "tcp_listen": false,
+    "socket_permission": "0700",
+    "port": 55435,
+    "fresh_cluster": true,
+    "fsync": true
+  },
+  "runs": [
+    {
+      "checks": 39,
+      "pass": 39,
+      "fail": 0
+    }
+  ],
+  "migrations_applied": [
+    "apply_0001_schema.sql",
+    "apply_0002_rls.sql",
+    "apply_0003_intent_scheduling.sql",
+    "apply_0004_rate_limit.sql",
+    "apply_0005_db_hardening.sql",
+    "apply_0006_admin_flows.sql"
+  ],
+  "vitest_db_suite": {
+    "file": "tests/db/postgres.test.ts",
+    "tests": 18,
+    "pass": 18,
+    "fail": 0,
+    "database_url": "postgres://postgres@127.0.0.1:55432/agntia_final",
+    "postgres_version": "16.15"
+  },
+  "product_worker_postgres": "NOT_IMPLEMENTED",
+  "worker_executed": false,
+  "gates_automatically_promoted": 0
+}

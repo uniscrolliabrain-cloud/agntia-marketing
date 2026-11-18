@@ -1,0 +1,12 @@
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+DROP POLICY
+CREATE POLICY
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+GRANT
+
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0004_rate_limit.sql:17: NOTICE:  policy "tenant_isolation" for relation "rate_limit_counters" does not exist, skipping
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0004_rate_limit.sql:28: NOTICE:  function consume_rate_limit(text,pg_catalog.int4,timestamptz) does not exist, skipping

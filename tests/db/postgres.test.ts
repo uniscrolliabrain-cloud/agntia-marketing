@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { applyMigrations, asAuthenticated, DATABASE_URL, pgErrorCode, withSuperuser } from '../support/db';
+import { applyMigrations, asAuthenticated, asRole, DATABASE_URL, pgErrorCode, rejectionCode, withSuperuser } from '../support/db';
 
 /**
  * MKT-C06/C22/C38 · Verificación real de Postgres 16.
@@ -17,7 +17,7 @@ const TENANT_TABLES = [
   'memberships', 'contacts', 'twins', 'briefs', 'audience_snapshots', 'creatives', 'claims',
   'approvals', 'campaigns', 'outbound_intents', 'receipts', 'connections', 'observations',
   'conversions', 'reports', 'privacy_requests', 'handoffs', 'service_events', 'audit_log',
-  'idempotency_keys',
+  'idempotency_keys', 'admin_actions',
 ];
 
 suite('Postgres real · esquema, RLS y outbox', () => {
@@ -86,6 +86,7 @@ suite('Postgres real · esquema, RLS y outbox', () => {
       '0003_intent_scheduling.sql',
       '0004_rate_limit.sql',
       '0005_db_hardening.sql',
+      '0006_admin_flows.sql',
     ]);
   });
 
@@ -272,6 +273,195 @@ suite('Postgres real · esquema, RLS y outbox', () => {
       code = pgErrorCode(error);
     }
     expect(code).toBe('42501');
+  });
+
+  it('el rol de datos no administra: no purga auditoría ni toca membresías', async () => {
+    expect(await rejectionCode(() => asAuthenticated(DATABASE_URL!, A, (c) => c.query('delete from audit_log')))).toBe('42501');
+    expect(
+      await rejectionCode(() =>
+        asAuthenticated(DATABASE_URL!, A, (c) =>
+          c.query(
+            `insert into memberships (tenant_id, actor_id, roles, scopes)
+             values ($1, 'actor_new', ARRAY['owner'], ARRAY['marketing.*'])`,
+            [A],
+          ),
+        ),
+      ),
+    ).toBe('42501');
+    expect(
+      await rejectionCode(() =>
+        asAuthenticated(DATABASE_URL!, A, (c) =>
+          c.query(
+            `insert into admin_actions (tenant_id, id, actor_id, action, ticket)
+             values ($1, 'adm_forged', 'actor_new', 'membership.grant', 'tk')`,
+            [A],
+          ),
+        ),
+      ),
+    ).toBe('42501');
+  });
+
+  it('el rol administrativo no purga sin ticket ni sin acción registrada', async () => {
+    await withSuperuser(DATABASE_URL!, (c) =>
+      c.query(
+        `insert into audit_log (tenant_id, actor_id, action, detail, at)
+         values ($1, 'seed', 'synthetic_old', 'viejo', now() - interval '400 days')`,
+        [A],
+      ),
+    );
+    const purge = (c: Client) => c.query(`delete from audit_log where tenant_id = $1 and at < now() - interval '365 days'`, [A]);
+    const ticket = `tk_${RUN}_purge`;
+
+    expect(await rejectionCode(() => asRole(DATABASE_URL!, 'marketing_admin', A, {}, purge))).toBe('42501');
+    expect(await rejectionCode(() => asRole(DATABASE_URL!, 'marketing_admin', A, { 'app.admin_ticket': ticket }, purge))).toBe('42501');
+    expect(
+      await rejectionCode(() => asRole(DATABASE_URL!, 'marketing_admin', A, { 'app.admin_ticket': ticket, 'app.admin_actor': 'ops_1' }, purge)),
+    ).toBe('42501');
+
+    const kept = await withSuperuser(DATABASE_URL!, (c) =>
+      c.query<{ n: number }>(`select count(*)::int as n from audit_log where tenant_id = $1 and action = 'synthetic_old'`, [A]),
+    );
+    expect(kept.rows[0]!.n).toBe(1);
+  });
+
+  it('la purga auditada borra sólo lo vencido y deja el registro inmutable', async () => {
+    const ticket = `tk_${RUN}_audited`;
+    const actionId = `adm_${RUN}_purge`;
+    await withSuperuser(DATABASE_URL!, (c) =>
+      c.query(
+        `insert into audit_log (tenant_id, actor_id, action, detail, at)
+         values ($1, 'seed', 'purge_target', 'vencido', now() - interval '400 days'),
+                ($1, 'seed', 'synthetic_recent', 'reciente', now())`,
+        [A],
+      ),
+    );
+    const purged = await asRole(
+      DATABASE_URL!,
+      'marketing_admin',
+      A,
+      { 'app.admin_ticket': ticket, 'app.admin_actor': 'ops_1' },
+      async (c) => {
+        await c.query(
+          `insert into admin_actions (tenant_id, id, actor_id, action, ticket, detail)
+           values ($1, $2, 'ops_1', 'audit.purge', $3, '{"retention_days":365}'::jsonb)`,
+          [A, actionId, ticket],
+        );
+        const res = await c.query<{ action: string }>(
+          `delete from audit_log where tenant_id = $1 and at < now() - interval '365 days' returning action`,
+          [A],
+        );
+        return res.rows.map((r) => r.action);
+      },
+      { commit: true },
+    );
+    expect(purged).toContain('purge_target');
+    expect(purged).not.toContain('synthetic_recent');
+
+    const state = await withSuperuser(DATABASE_URL!, async (c) => {
+      const old = await c.query<{ n: number }>(`select count(*)::int as n from audit_log where tenant_id = $1 and action = 'purge_target'`, [A]);
+      const fresh = await c.query<{ n: number }>(`select count(*)::int as n from audit_log where tenant_id = $1 and action = 'synthetic_recent'`, [A]);
+      const actions = await c.query<{ action: string; actor_id: string; ticket: string }>(
+        `select action, actor_id, ticket from admin_actions where tenant_id = $1 and id = $2`,
+        [A, actionId],
+      );
+      return { old: old.rows[0]!.n, fresh: fresh.rows[0]!.n, actions: actions.rows };
+    });
+    expect(state.old).toBe(0);
+    expect(state.fresh).toBe(1);
+    expect(state.actions).toEqual([{ action: 'audit.purge', actor_id: 'ops_1', ticket }]);
+
+    // El registro de la propia acción no se reescribe ni se borra.
+    expect(
+      await rejectionCode(() =>
+        asRole(DATABASE_URL!, 'marketing_admin', A, {}, (c) => c.query(`update admin_actions set actor_id = 'otro' where id = $1`, [actionId])),
+      ),
+    ).toBe('42501');
+    expect(
+      await rejectionCode(() => asRole(DATABASE_URL!, 'marketing_admin', A, {}, (c) => c.query(`delete from admin_actions where id = $1`, [actionId]))),
+    ).toBe('42501');
+  });
+
+  it('la membresía cambia sólo por el camino administrativo registrado', async () => {
+    const ticket = `tk_${RUN}_member`;
+    expect(
+      await rejectionCode(() =>
+        asRole(
+          DATABASE_URL!,
+          'marketing_admin',
+          A,
+          { 'app.admin_ticket': ticket, 'app.admin_actor': 'ops_1' },
+          (c) =>
+            c.query(
+              `insert into memberships (tenant_id, actor_id, roles, scopes)
+               values ($1, 'actor_ops', ARRAY['owner'], ARRAY['marketing.*'])`,
+              [A],
+            ),
+        ),
+      ),
+    ).toBe('42501');
+
+    await asRole(
+      DATABASE_URL!,
+      'marketing_admin',
+      A,
+      { 'app.admin_ticket': ticket, 'app.admin_actor': 'ops_1' },
+      async (c) => {
+        await c.query(
+          `insert into admin_actions (tenant_id, id, actor_id, action, ticket, detail)
+           values ($1, $2, 'ops_1', 'membership.grant', $3, '{"actor":"actor_ops"}'::jsonb)`,
+          [A, `adm_${RUN}_member`, ticket],
+        );
+        await c.query(
+          `insert into memberships (tenant_id, actor_id, roles, scopes)
+           values ($1, 'actor_ops', ARRAY['owner'], ARRAY['marketing.*'])`,
+          [A],
+        );
+      },
+      { commit: true },
+    );
+
+    const seen = await asAuthenticated(DATABASE_URL!, A, (c) =>
+      c.query<{ roles: string[] }>(`select roles from memberships where tenant_id = $1 and actor_id = 'actor_ops'`, [A]),
+    );
+    expect(seen.rows[0]!.roles).toEqual(['owner']);
+    expect(
+      await rejectionCode(() =>
+        asAuthenticated(DATABASE_URL!, A, (c) => c.query(`update memberships set roles = ARRAY['viewer'] where actor_id = 'actor_ops'`)),
+      ),
+    ).toBe('42501');
+  });
+
+  it('un cambio de plan exige acción administrativa registrada', async () => {
+    expect(
+      await rejectionCode(() =>
+        asRole(DATABASE_URL!, 'marketing_admin', A, { 'app.admin_ticket': 'tk_x', 'app.admin_actor': 'ops_1' }, (c) =>
+          c.query(`update tenants set plan = 'production' where id = $1`, [A]),
+        ),
+      ),
+    ).toBe('42501');
+    expect(
+      await rejectionCode(() => asAuthenticated(DATABASE_URL!, A, (c) => c.query(`update tenants set plan = 'production' where id = $1`, [A]))),
+    ).toBe('42501');
+
+    const ticket = `tk_${RUN}_plan`;
+    await asRole(
+      DATABASE_URL!,
+      'marketing_admin',
+      A,
+      { 'app.admin_ticket': ticket, 'app.admin_actor': 'ops_1' },
+      async (c) => {
+        await c.query(
+          `insert into admin_actions (tenant_id, id, actor_id, action, ticket, detail)
+           values ($1, $2, 'ops_1', 'tenant.plan_change', $3, '{"to":"pilot"}'::jsonb)`,
+          [A, `adm_${RUN}_plan`, ticket],
+        );
+        await c.query(`update tenants set plan = 'pilot' where id = $1`, [A]);
+      },
+      { commit: true },
+    );
+
+    const plan = await withSuperuser(DATABASE_URL!, (c) => c.query<{ plan: string }>(`select plan from tenants where id = $1`, [A]));
+    expect(plan.rows[0]!.plan).toBe('pilot');
   });
 
   it('comparte el límite entre dos instancias del API', async () => {

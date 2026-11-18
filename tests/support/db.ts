@@ -61,6 +61,52 @@ export async function asAuthenticated<T>(
   }
 }
 
+/**
+ * Ejecuta como un rol concreto (`marketing_admin`, `authenticated`, ...) dentro
+ * de una transacción, fijando los GUC que la sesión declara. Por defecto la
+ * transacción se revierte; `commit: true` la confirma para poder comprobar el
+ * efecto desde otra conexión.
+ */
+export async function asRole<T>(
+  url: string,
+  role: string,
+  tenant: string | null,
+  settings: Record<string, string>,
+  fn: (client: Client) => Promise<T>,
+  options: { commit?: boolean } = {},
+): Promise<T> {
+  if (!/^[a-z_][a-z0-9_]*$/.test(role)) throw new Error(`invalid_role:${role}`);
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query('begin');
+    await client.query(`set local role ${role}`);
+    if (tenant) await client.query("select set_config('app.tenant_id', $1, true)", [tenant]);
+    for (const [key, value] of Object.entries(settings)) {
+      if (!/^app\.[a-z_]+$/.test(key)) throw new Error(`invalid_setting:${key}`);
+      await client.query('select set_config($1, $2, true)', [key, value]);
+    }
+    const result = await fn(client);
+    await client.query(options.commit ? 'commit' : 'rollback');
+    return result;
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+/** Devuelve el SQLSTATE del rechazo, o `undefined` si la operación se aceptó. */
+export async function rejectionCode(run: () => Promise<unknown>): Promise<string | undefined> {
+  try {
+    await run();
+    return undefined;
+  } catch (error) {
+    return pgErrorCode(error);
+  }
+}
+
 export function pgErrorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error ? String((error as { code: unknown }).code) : undefined;
 }

@@ -1,0 +1,27 @@
+DO
+GRANT
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+DROP POLICY
+CREATE POLICY
+REVOKE
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0006_admin_flows.sql:52: NOTICE:  policy "tenant_isolation" for relation "admin_actions" does not exist, skipping
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0006_admin_flows.sql:125: NOTICE:  trigger "memberships_require_admin_action" for relation "memberships" does not exist, skipping
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0006_admin_flows.sql:132: NOTICE:  trigger "tenants_require_admin_action" for relation "tenants" does not exist, skipping
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0006_admin_flows.sql:140: NOTICE:  trigger "audit_log_require_admin_action" for relation "audit_log" does not exist, skipping

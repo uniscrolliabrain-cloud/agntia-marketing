@@ -103,6 +103,12 @@ Gates:
 
 Desviaciones y ajustes de diseño: CI definido pero no ejecutado en GitHub; release y rollback no probados.
 
+> **Actualización 2026-11-18.** CI ya se ejecutó en GitHub Actions sobre `9cf035b`:
+> `verify` y `database` en success, y el job `database` levanta `postgres:16` como
+> servicio, aplica la cadena de migraciones y corre la suite con `DATABASE_URL`
+> (`docs/evidence/merge-20261118/`). **Release y rollback de producto siguen sin
+> probarse**: no hay despliegue, y el rollback verificado es de DDL, no operativo.
+
 Incidencias heredadas y deuda: sin proveedor real ni Postgres, las capacidades externas quedan deshabilitadas y sus gates en NOT_VERIFIED. No se modificó `agente`.
 
 Recomendaciones para mejorar futuras campañas: Ejecutar el workflow y ensayar rollback por flag.

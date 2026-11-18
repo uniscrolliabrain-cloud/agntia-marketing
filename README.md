@@ -1,15 +1,15 @@
 # agntia-marketing
 
-Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental3/9 · 12 de noviembre de2026.
+Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental 3/9 · 12 de noviembre de 2026.
 
-**IMPLEMENTACIÓN EN RAMA. Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor.** El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. No hay proveedores conectados ni Postgres ejecutado: esas capacidades están deshabilitadas y se declaran `NOT_VERIFIED`, no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
+**IMPLEMENTADO EN `main`.** Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor. El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. Postgres 16 sí se ha ejecutado: la capa SQL está verificada con un runner nativo y evidencia auditable ([db](db/README.md)), pero **el API y el worker siguen usando el store en memoria**, así que la persistencia de producto se declara `NOT_VERIFIED`. No hay proveedores conectados: esas capacidades están deshabilitadas y no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
 
 ## Implementación
 
 ```bash
 npm install
 npm run typecheck     # tsc estricto, sin emitir
-npm test              # 88 pruebas, 5 bloques de campañas
+npm test              # 125 pruebas (107 de campañas + 18 de Postgres real)
 npm run api:dev       # API Hono en :8787 (portal en /portal/)
 npm run worker:dev    # ciclo outbox → sandbox → receipt
 ```
@@ -23,7 +23,7 @@ npm run worker:dev    # ciclo outbox → sandbox → receipt
 | `apps/api` | Hono con JWT de Supabase, PEP por capacidad e idempotencia |
 | `apps/worker` | outbox con fence, receipts y cierre de campaña |
 | `apps/portal` | portal responsive mínimo |
-| `db/migrations` | esquema Postgres y RLS forzada (escritos, **no ejecutados**) |
+| `db/migrations` | esquema Postgres, RLS forzada y flujo administrativo auditado (`0001`–`0006`, **ejecutados y verificados** en 16.15) |
 
 Nada de esto envía correo real, publica landings, lanza anuncios, gasta dinero ni modifica el repositorio `agente`.
 

@@ -78,12 +78,12 @@ podido verificar en esta máquina. Se declara en vez de simularse.
 - Potencia estadística, puerta de suficiencia MMM, escenarios de presupuesto sin mutar gasto.
 - Auditoría SEO sobre hechos aportados, observación AEO/GEO sin promesas.
 - Portal responsive mínimo, SDK con 8 tools allowlist y bridge de eventos al padre.
-- Esquema Postgres con claves compuestas y RLS forzada (SQL escrito, no ejecutado).
+- Esquema Postgres con claves compuestas y RLS forzada (`0001`–`0006`, ejecutado y verificado en 16.15; ver `docs/evidence/admin-flows-20261118/`).
 - CI con instalación, typecheck y tests.
 
 ## Qué NO está implementado o verificado
 
-- **Postgres real:** sin daemon Docker ni servidor; migraciones no ejecutadas. `NOT_VERIFIED`.
+- **Postgres real:** verificado sin Docker (binarios de Ubuntu extraídos, clúster propio): seis migraciones aplican en limpio, RLS/FK/permisos y `SKIP LOCKED` pasan en el runner nativo (39/39), y `tests/db/postgres.test.ts` corre 18 pruebas contra la base. Lo que sigue `NOT_VERIFIED` es la **persistencia de producto**: el API y el worker usan `MemoryStore`.
 - **Proveedores reales:** Mautic, Listmonk, Matomo, Plausible, PostHog, GA4, Search Console, GrowthBook, Ads y Anam están deshabilitados. Un stub no verifica la API.
 - **Envío de correo real:** sólo sandbox local con destinatarios `sandbox_*`.
 - **Publicación de landings y anuncios:** no hay despliegue ni gasto; el techo de pruebas es 50 EUR/día y nunca se envía.
