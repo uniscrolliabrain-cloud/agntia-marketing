@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "eb421fa0c0b5c4cdd79b42d600b275f45a7f59b1",
+  "reviewed_source": "working tree over eb421fa (migrations 0005 + test harness)",
+  "sources": {
+    "db/migrations/0001_schema.sql": {
+      "sha256": "7161ec4a0249c86037732e0ec8b13f45fb5eb5366a3123b83a7c4b95e33f2397",
+      "git_blob": "fd5fffba0a6553dca72d7da1e10df00b0502f182"
+    },
+    "db/migrations/0002_rls.sql": {
+      "sha256": "38a5928c28a33c04f540507154a4e907b70d5c92980258e2b26ef441678866ad",
+      "git_blob": "b4509b933e3f66345680ad86ff20c626f96fe6fb"
+    },
+    "db/migrations/0003_intent_scheduling.sql": {
+      "sha256": "e81ad170ae9ae56fa05ebd055d1149f5453e86e48ab48d0de4f5215586f76c72",
+      "git_blob": "8db088fa39d5a0a552179e41b2a71646712fb7ab"
+    },
+    "db/migrations/0004_rate_limit.sql": {
+      "sha256": "115926cbc9305852d7cb39ea83db7d2fbc010d9c0b28fc629f50f01aa939c4e1",
+      "git_blob": "9d7668e004f429a69e9c583cc237cb83270893b8"
+    },
+    "db/migrations/0005_db_hardening.sql": {
+      "sha256": "403176cd9109d518b344e14be824eb479cc5382d752c4126f1e4797b51b65f51",
+      "git_blob": "db94c4951a1f827c097fe4137ae1abe771b97093"
+    },
+    "tests/postgres/native_postgres.py": {
+      "sha256": "761d5356a6d54b420220bd9fb138487ab420bf670b642a8cdcea88afac5d639c",
+      "git_blob": "c14dbaa50db238366f60ae5e40c2e89e9bc5e92f"
+    },
+    "tests/db/postgres.test.ts": {
+      "sha256": "21916584016dc14413a2c9f285043fbdc9d4364b782906f47163b12cdc3f59ad",
+      "git_blob": "6c5d0b6b6cb4b474ab1157bbf7f1d77083413f8f"
+    }
+  },
+  "postgres": {
+    "version": "16.15",
+    "source": "Ubuntu 24.04 packages postgresql-16 (extracted in user space)",
+    "compiled_from_source_in_this_run": false,
+    "docker_used": false,
+    "system_install": false,
+    "tcp_listen": false,
+    "socket_permission": "0700",
+    "fsync": true,
+    "port": 55434,
+    "fresh_cluster": true
+  },
+  "runs": [
+    {
+      "checks": 38,
+      "pass": 38,
+      "fail": 0
+    }
+  ],
+  "fixed_findings": [
+    "PG-01",
+    "PG-02",
+    "PG-03",
+    "PG-04",
+    "PG-05",
+    "PG-06",
+    "PG-07",
+    "PG-08"
+  ],
+  "product_worker_postgres": "NOT_IMPLEMENTED",
+  "worker_executed": false,
+  "gates_automatically_promoted": 0
+}

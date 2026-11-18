@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real PostgreSQL tests against unchanged Agntia Marketing migrations.
+"""Real PostgreSQL tests against the full Agntia Marketing migration chain.
 All SQL/data/connections are confined to this disposable local cluster.
 The SKIP LOCKED SQL below is a LAB SPECIMEN, not an implemented product worker.
 """
@@ -8,7 +8,9 @@ ROOT=pathlib.Path(os.environ.get('MKT_PG_LAB',str(pathlib.Path(__file__).resolve
 BIN=ROOT/'pgsql/bin'; E=ROOT/'evidence'; E.mkdir(exist_ok=True)
 SOURCE=pathlib.Path(os.environ.get('MKT_REVIEW_SOURCE','/workspace/reviews/agntia-marketing-1a848a4'))
 DB='mkt_original'; ADMIN='lab_admin'; API='mkt_api_test'; WORKER='mkt_worker_test'
-PGHOST=str(ROOT/'socket'); PGPORT='55432'; RESULTS=[]; SERIAL=0
+PGHOST=str(ROOT/'socket'); PGPORT=os.environ.get('MKT_PG_PORT','55432'); RESULTS=[]; SERIAL=0
+# SHA revisado explícito: el informe no debe atribuir resultados a un commit adivinado.
+SHA=os.environ.get('MKT_REVIEW_SHA','WORKING_TREE_NOT_PINNED')
 ENV={**os.environ,'PGHOST':PGHOST,'PGPORT':PGPORT,'PGCONNECT_TIMEOUT':'5'}
 
 def sql(query,role=ADMIN,db=DB,expect_ok=True):
@@ -30,7 +32,7 @@ def check(name,fn,scope='MIGRATIONS_REAL_DB'):
   detail=fn();r={'name':name,'status':'PASS','scope':scope,'detail':detail}
  except Exception as ex:
   r={'name':name,'status':'FAIL','scope':scope,'detail':str(ex)}
- RESULTS.append(r);(E/'results.json').write_text(json.dumps({'source_sha':'1a848a49775407997a9550fbe58d27bcde222208','tests':RESULTS},indent=2));print(json.dumps(r),flush=True)
+ RESULTS.append(r);(E/'results.json').write_text(json.dumps({'source_sha':SHA,'tests':RESULTS},indent=2));print(json.dumps(r),flush=True)
 
 def equal(actual,expected):
  assert actual==expected,f'expected={expected!r}, actual={actual!r}'
@@ -52,8 +54,9 @@ def intent_insert(id,subject=None,operation=None,extra=''):
 assert pathlib.Path(PGHOST).is_dir()
 sql("CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE mkt_api_test LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE mkt_worker_test LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE mkt_owner_test LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; GRANT authenticated TO mkt_api_test,mkt_worker_test;",db='postgres')
 sql('CREATE DATABASE '+DB,db='postgres')
-for filename in ['0001_schema.sql','0002_rls.sql']:
- path=SOURCE/'db/migrations'/filename
+# La cadena completa: las correcciones de permisos y FK viven en 0005 en adelante.
+for path in sorted((SOURCE/'db/migrations').glob('*.sql')):
+ filename=path.name
  r=subprocess.run([str(BIN/'psql'),'-X','-U',ADMIN,'-d',DB,'-v','ON_ERROR_STOP=1','--single-transaction','-f',str(path)],env=ENV,text=True,capture_output=True,timeout=20)
  (E/(filename+'.log')).write_text(r.stdout+'\n'+r.stderr)
  assert r.returncode==0,r.stderr
@@ -127,7 +130,10 @@ CLAIM="""WITH candidate AS (
  RETURNING i.id,i.lease_fence"""
 (E/'claim-specimen.sql').write_text('-- LAB SPECIMEN ONLY: not currently wired in product worker\n'+CLAIM+';\n')
 def concurrency(single):
- sql("DELETE FROM outbound_intents WHERE id LIKE 'race_%';"+intent_insert('race_1')+';'+('' if single else intent_insert('race_2')+';'))
+ # 0005 exige que subject_ref exista como contacto del mismo tenant.
+ sql("DELETE FROM outbound_intents WHERE id LIKE 'race_%';DELETE FROM contacts WHERE id LIKE 'race_%';"+
+     contact_insert('tenant_a','race_1')+';'+('' if single else contact_insert('tenant_a','race_2')+';')+
+     intent_insert('race_1')+';'+('' if single else intent_insert('race_2')+';'))
  query="BEGIN;SET LOCAL app.tenant_id='tenant_a';"+CLAIM+";SELECT pg_sleep(2);COMMIT;"
  p=subprocess.Popen([str(BIN/'psql'),'-X','-qAt','-v','ON_ERROR_STOP=1','-U',WORKER,'-d',DB,'-c',query],env=ENV,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  try:
@@ -174,6 +180,6 @@ def dump_restore():
  return {'restored':checks,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'worker_executed':False}
 check('native_dump_restore_preserves_suppression_revocation_receipt_and_rls',dump_restore,'NATIVE_BACKUP_NOT_PRODUCT_RESTORE_WORKFLOW')
 
-summary={'source_sha':'1a848a49775407997a9550fbe58d27bcde222208','postgres_version':sql('SELECT version()').stdout.strip(),'tests':RESULTS,'totals':{'passed':sum(x['status']=='PASS'for x in RESULTS),'failed':sum(x['status']=='FAIL'for x in RESULTS)},'product_worker_postgres':'NOT_IMPLEMENTED','product_gates_auto_promoted':0}
+summary={'source_sha':SHA,'postgres_version':sql('SELECT version()').stdout.strip(),'tests':RESULTS,'totals':{'passed':sum(x['status']=='PASS'for x in RESULTS),'failed':sum(x['status']=='FAIL'for x in RESULTS)},'product_worker_postgres':'NOT_IMPLEMENTED','product_gates_auto_promoted':0}
 (E/'results.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary['totals']),flush=True)
 sys.exit(1 if summary['totals']['failed'] else 0)

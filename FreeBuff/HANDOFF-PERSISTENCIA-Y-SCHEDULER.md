@@ -70,7 +70,10 @@ No es un MVP ni un rediseño: es conectar lo que ya existe y está probado.
 
 ## 4. Reglas del repo que no debes romper
 
-- **Numeración de migraciones:** empieza en `0005_`. `0001`–`0004` están tomadas.
+- **Numeración de migraciones:** empieza en `0006_`. `0001`–`0004` están tomadas y
+  `0005_db_hardening.sql` corrige los hallazgos PG-01…PG-08 de la revisión nativa
+  (RLS de `tenants`, FK compuestas de `outbound_intents`, auditoría append-only y
+  permisos mínimos). No la reescribas: es aditiva e idempotente.
 - **No toques** `packages/core/src/store.ts` en su interfaz pública, ni los
   contratos de `packages/contracts`, ni `apps/api/src/app.ts` salvo lo mínimo para
   inyectar el repositorio.
@@ -117,6 +120,11 @@ un verde local sin `DATABASE_URL` **no** prueba persistencia.
   duplicarían.
 - `set local` fuera de transacción no persiste: cada operación necesita su
   `begin`/`commit`, también las lecturas.
+- Después de `0005`, el rol `authenticated` **sólo lee** `tenants` y `memberships`:
+  provisionar tenants o cambiar roles/scopes es un flujo administrativo separado y
+  auditado, no una escritura del repositorio. `audit_log` es append-only (sin
+  `update`/`delete`), pero el INSERT normal funciona porque la secuencia tiene
+  `usage`; no hace falta suministrar `seq`.
 - RLS está **forzada**: el owner de la tabla tampoco se libra. Los tests usan
   `set local role authenticated`; el superusuario sí la salta, no lo uses para
   "verificar" aislamiento.

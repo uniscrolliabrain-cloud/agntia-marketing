@@ -56,10 +56,16 @@ suite('Postgres real · esquema, RLS y outbox', () => {
           [tenant, `camp_${suffix}`, `br_${suffix}`, `snap_${suffix}`, `cr_${suffix}`, `apv_${suffix}`],
         );
         for (const n of [1, 2]) {
+          // 0005 exige que subject_ref sea un contacto del mismo tenant.
+          await c.query(
+            `insert into contacts (tenant_id, id, email_ref, country, locale, lifecycle_stage, interest_topic, consent)
+             values ($1, $2, $3, 'ES', 'es', 'lead', 'growth', '{"marketing":true}'::jsonb)`,
+            [tenant, `ct_${suffix}_${n}`, `ref_${suffix}_${n}`],
+          );
           await c.query(
             `insert into outbound_intents (tenant_id, id, operation_key, campaign_id, subject_ref, channel, payload_hash, approval_ref, audience_snapshot_id, eligibility_ref, state, scheduled_for)
              values ($1, $2, $3, $4, $5, 'email', 'ph', $6, $7, 'elig', 'queued', now())`,
-            [tenant, `int_${suffix}_${n}`, `op_${suffix}_${n}`, `camp_${suffix}`, `subject_${suffix}_${n}`, `apv_${suffix}`, `snap_${suffix}`],
+            [tenant, `int_${suffix}_${n}`, `op_${suffix}_${n}`, `camp_${suffix}`, `ct_${suffix}_${n}`, `apv_${suffix}`, `snap_${suffix}`],
           );
         }
       }
@@ -74,7 +80,13 @@ suite('Postgres real · esquema, RLS y outbox', () => {
 
   it('aplica todas las migraciones en un Postgres limpio', async () => {
     const applied = await applyMigrations(DATABASE_URL!);
-    expect(applied).toEqual(['0001_schema.sql', '0002_rls.sql', '0003_intent_scheduling.sql', '0004_rate_limit.sql']);
+    expect(applied).toEqual([
+      '0001_schema.sql',
+      '0002_rls.sql',
+      '0003_intent_scheduling.sql',
+      '0004_rate_limit.sql',
+      '0005_db_hardening.sql',
+    ]);
   });
 
   it('tiene RLS habilitado y forzado en todas las tablas con tenant_id', async () => {
@@ -99,11 +111,11 @@ suite('Postgres real · esquema, RLS y outbox', () => {
 
   it('aísla lecturas por tenant y no devuelve filas del otro', async () => {
     const a = await asAuthenticated(DATABASE_URL!, A, (c) => c.query<{ id: string; tenant_id: string }>('select id, tenant_id from contacts'));
-    expect(a.rows.map((r) => r.id)).toEqual(['ct_a']);
+    expect(a.rows.map((r) => r.id)).toEqual(['ct_a', 'ct_a_1', 'ct_a_2']);
     expect(a.rows.every((r) => r.tenant_id === A)).toBe(true);
 
     const b = await asAuthenticated(DATABASE_URL!, B, (c) => c.query<{ id: string }>('select id from contacts'));
-    expect(b.rows.map((r) => r.id)).toEqual(['ct_b']);
+    expect(b.rows.map((r) => r.id)).toEqual(['ct_b', 'ct_b_1', 'ct_b_2']);
   });
 
   it('rechaza una escritura con tenant_id ajeno aunque venga en el payload', async () => {
@@ -144,7 +156,7 @@ suite('Postgres real · esquema, RLS y outbox', () => {
       await withSuperuser(DATABASE_URL!, (c) =>
         c.query(
           `insert into outbound_intents (tenant_id, id, operation_key, campaign_id, subject_ref, channel, payload_hash, approval_ref, audience_snapshot_id, eligibility_ref, state)
-           values ($1, 'int_dup', $2, $3, 'subject_dup', 'email', 'ph', $4, $5, 'elig', 'queued')`,
+           values ($1, 'int_dup', $2, $3, 'ct_a', 'email', 'ph', $4, $5, 'elig', 'queued')`,
           [A, `op_a_1`, `camp_a`, `apv_a`, `snap_a`],
         ),
       );
@@ -159,7 +171,7 @@ suite('Postgres real · esquema, RLS y outbox', () => {
       for (const step of ['step_1', 'step_2']) {
         await c.query(
           `insert into outbound_intents (tenant_id, id, operation_key, campaign_id, journey_step_id, subject_ref, channel, payload_hash, approval_ref, audience_snapshot_id, eligibility_ref, state, scheduled_for)
-           values ($1, $2, $3, $4, $5, 'subject_journey', 'email', 'ph', $6, $7, 'elig', 'queued', now() + interval '1 hour')`,
+           values ($1, $2, $3, $4, $5, 'ct_a', 'email', 'ph', $6, $7, 'elig', 'queued', now() + interval '1 hour')`,
           [A, `int_${step}`, `op_${step}`, `camp_a`, step, `apv_a`, `snap_a`],
         );
       }

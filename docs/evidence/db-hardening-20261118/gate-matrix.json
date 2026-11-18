@@ -1,0 +1,32 @@
+[
+  {
+    "id": "MKT-C06-G01",
+    "status": "PARTIAL",
+    "reason": "Las FK compuestas de outbound_intents (approval_ref, audience_snapshot_id, subject_ref) rechazan cruces de tenant con 23503; el camino API-to-Postgres sigue ausente"
+  },
+  {
+    "id": "MKT-C06-G02",
+    "status": "PARTIAL",
+    "reason": "Rollback SQL y DDL transaccional probados; el adaptador de producto sigue sin existir"
+  },
+  {
+    "id": "MKT-C22-G01",
+    "status": "NOT_VERIFIED_PRODUCT",
+    "reason": "Dos sesiones SQL usan SKIP LOCKED correctamente; no hay worker de producto sobre Postgres ni proveedor real"
+  },
+  {
+    "id": "MKT-C22-G02",
+    "status": "NOT_VERIFIED_PRODUCT",
+    "reason": "El PEP de suspensión/takeover no está conectado a un worker Postgres"
+  },
+  {
+    "id": "MKT-C41-G01",
+    "status": "NOT_VERIFIED",
+    "reason": "Pausa remota y ACK requieren un proveedor real; no se ejerció"
+  },
+  {
+    "id": "MKT-C41-G02",
+    "status": "PARTIAL",
+    "reason": "Dump/restore nativo conserva filas, RLS y supresión; falta el arranque y la reconciliación del worker real"
+  }
+]

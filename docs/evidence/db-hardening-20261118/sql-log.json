@@ -1,0 +1,797 @@
+{
+  "executions": 99,
+  "queries": [
+    {
+      "role": "lab_admin",
+      "database": "postgres",
+      "sql": "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE mkt_api_test LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE mkt_worker_test LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; CREATE ROLE mkt_owner_test LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; GRANT authenticated TO mkt_api_test,mkt_worker_test;",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "postgres",
+      "sql": "CREATE DATABASE mkt_original",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "\nINSERT INTO tenants(id,name,plan) VALUES('tenant_a','Synthetic tenant A','sandbox'),('tenant_b','Synthetic tenant B','sandbox');\nINSERT INTO memberships(tenant_id,actor_id,roles,scopes) VALUES('tenant_a','actor_api',ARRAY['operator'],ARRAY['marketing.read']),('tenant_b','actor_b',ARRAY['operator'],ARRAY['marketing.read']);\nINSERT INTO contacts(tenant_id,id,email_ref,country,locale,lifecycle_stage,interest_topic,suppressed) VALUES('tenant_a','contact_a','ref_a','ES','es','lead','growth',true),('tenant_b','contact_b','ref_b','ES','es','lead','growth',false);\nINSERT INTO briefs(tenant_id,id,version,status,body) VALUES('tenant_a','brief_a',1,'accepted','{}'),('tenant_b','brief_b',1,'accepted','{}');\nINSERT INTO audience_snapshots(tenant_id,id,rule_hash,rule,member_refs,eligible_count,excluded_count,members_hash,policy_version,source_watermark,expires_at) VALUES('tenant_a','snapshot_a','h','{}','[]',1,0,'h','p1',1,now()+interval '1 day'),('tenant_b','snapshot_b','h','{}','[]',1,0,'h','p1',1,now()+interval '1 day');\nINSERT INTO creatives(tenant_id,id,revision,body,hash) VALUES('tenant_a','creative_a',1,'{}','h'),('tenant_b','creative_b',1,'{}','h');\nINSERT INTO approvals(tenant_id,approval_ref,approver_actor_id,approver_is_human,revision_hash,audience_max_hash,purpose,channel,cost_ceiling_amount,cost_ceiling_currency,policy_version,expires_at) VALUES('tenant_a','approval_a','reviewer_a',true,'h','h','marketing','email',1,'EUR','p1',now()+interval '1 day'),('tenant_b','approval_b','reviewer_b',true,'h','h','marketing','email',1,'EUR','p1',now()+interval '1 day');\nINSERT INTO campaigns(tenant_id,id,name,brief_id,channel,revision,audience_snapshot_id,creative_id,approval_ref,cost_ceiling_amount,cost_ceiling_currency,state,version) VALUES('tenant_a','campaign_a','Synthetic A','brief_a','email',1,'snapshot_a','creative_a','approval_a',1,'EUR','queued',1),('tenant_b','campaign_b','Synthetic B','brief_b','email',1,'snapshot_b','creative_b','approval_b',1,'EUR','queued',1);\nINSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','confirmed_a','confirmed_key','campaign_a','contact_a','email','h','approval_a','snapshot_a','proof','confirmed'),('tenant_b','queued_b','queued_b','campaign_b','contact_b','email','h','approval_b','snapshot_b','proof','queued');\nINSERT INTO receipts(tenant_id,id,intent_id,provider,remote_id,state) VALUES('tenant_a','receipt_a','confirmed_a','sandbox','synthetic_remote_a','accepted');\nINSERT INTO audit_log(tenant_id,actor_id,action,detail) VALUES('tenant_a','actor_api','synthetic','preserve me');\nALTER TABLE contacts OWNER TO mkt_owner_test;\n",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT bool_and(NOT rolsuper AND NOT rolbypassrls AND NOT rolcreaterole) FROM pg_roles WHERE rolname IN ('mkt_api_test','mkt_worker_test','mkt_owner_test')",
+      "exit_code": 0,
+      "stdout": "t\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT string_agg(tenant_id,',') FROM contacts; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "tenant_a\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT string_agg(tenant_id,',') FROM contacts; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "tenant_b\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "SELECT count(*) FROM contacts",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='';SELECT count(*) FROM contacts;ROLLBACK",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='tenant_a';SELECT count(*) FROM contacts;COMMIT;SELECT count(*) FROM contacts",
+      "exit_code": 0,
+      "stdout": "1\n0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_owner_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT string_agg(tenant_id,',') FROM contacts; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "tenant_a\n",
+      "stderr": ""
+    },
+    {
+      "role": "anon",
+      "database": "mkt_original",
+      "sql": "SET ROLE anon;BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT * FROM contacts; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: permission denied for table contacts\nLOCATION:  aclcheck_error, aclchk.c:2812\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; INSERT INTO contacts(tenant_id,id,email_ref,country,locale,lifecycle_stage,interest_topic) VALUES('tenant_b','intruder','synthetic-ref','ES','es','lead','synthetic'); ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: new row violates row-level security policy for table \"contacts\"\nLOCATION:  ExecWithCheckOptions, execMain.c:2234\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE contacts SET tenant_id='tenant_b' WHERE id='contact_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: new row violates row-level security policy for table \"contacts\"\nLOCATION:  ExecWithCheckOptions, execMain.c:2234\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; WITH changed AS(UPDATE contacts SET country='FR' WHERE tenant_id='tenant_b' RETURNING id)SELECT count(*)FROM changed; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; WITH changed AS(DELETE FROM contacts WHERE tenant_id='tenant_b' RETURNING id)SELECT count(*)FROM changed; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='tenant_id' ORDER BY table_name",
+      "exit_code": 0,
+      "stdout": "approvals\naudience_snapshots\naudit_log\nbriefs\ncampaigns\nclaims\nconnections\ncontacts\nconversions\ncreatives\nhandoffs\nidempotency_keys\nmemberships\nobservations\noutbound_intents\nprivacy_requests\nrate_limit_counters\nreceipts\nreports\nservice_events\ntwins\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM approvals WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM audience_snapshots WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM audit_log WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM briefs WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM campaigns WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM claims WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM connections WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM contacts WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM conversions WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM creatives WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM handoffs WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM idempotency_keys WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM memberships WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM observations WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM outbound_intents WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM privacy_requests WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM rate_limit_counters WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM receipts WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM reports WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM service_events WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM twins WHERE tenant_id <> 'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM approvals WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM audience_snapshots WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM audit_log WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM briefs WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM campaigns WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM claims WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM connections WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM contacts WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM conversions WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM creatives WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM handoffs WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM idempotency_keys WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM memberships WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM observations WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM outbound_intents WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM privacy_requests WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM rate_limit_counters WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM receipts WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM reports WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM service_events WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_b'; SELECT count(*) FROM twins WHERE tenant_id <> 'tenant_b'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; SELECT count(*) FROM tenants WHERE id<>'tenant_a'; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE campaigns SET brief_id='brief_b' WHERE id='campaign_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"campaigns\" violates foreign key constraint \"campaigns_tenant_id_brief_id_fkey\"\nDETAIL:  Key is not present in table \"briefs\".\nSCHEMA NAME:  public\nTABLE NAME:  campaigns\nCONSTRAINT NAME:  campaigns_tenant_id_brief_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE campaigns SET audience_snapshot_id='snapshot_b' WHERE id='campaign_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"campaigns\" violates foreign key constraint \"campaigns_tenant_id_audience_snapshot_id_fkey\"\nDETAIL:  Key is not present in table \"audience_snapshots\".\nSCHEMA NAME:  public\nTABLE NAME:  campaigns\nCONSTRAINT NAME:  campaigns_tenant_id_audience_snapshot_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE campaigns SET creative_id='creative_b' WHERE id='campaign_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"campaigns\" violates foreign key constraint \"campaigns_tenant_id_creative_id_fkey\"\nDETAIL:  Key is not present in table \"creatives\".\nSCHEMA NAME:  public\nTABLE NAME:  campaigns\nCONSTRAINT NAME:  campaigns_tenant_id_creative_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE campaigns SET approval_ref='approval_b' WHERE id='campaign_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"campaigns\" violates foreign key constraint \"campaigns_tenant_id_approval_ref_fkey\"\nDETAIL:  Key is not present in table \"approvals\".\nSCHEMA NAME:  public\nTABLE NAME:  campaigns\nCONSTRAINT NAME:  campaigns_tenant_id_approval_ref_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE outbound_intents SET campaign_id='campaign_b' WHERE id='confirmed_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"outbound_intents\" violates foreign key constraint \"outbound_intents_tenant_id_campaign_id_fkey\"\nDETAIL:  Key is not present in table \"campaigns\".\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_tenant_id_campaign_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE receipts SET intent_id='queued_b' WHERE id='receipt_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"receipts\" violates foreign key constraint \"receipts_tenant_id_intent_id_fkey\"\nDETAIL:  Key is not present in table \"outbound_intents\".\nSCHEMA NAME:  public\nTABLE NAME:  receipts\nCONSTRAINT NAME:  receipts_tenant_id_intent_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE outbound_intents SET approval_ref='approval_b' WHERE id='confirmed_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"outbound_intents\" violates foreign key constraint \"outbound_intents_approval_fk\"\nDETAIL:  Key is not present in table \"approvals\".\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_approval_fk\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE outbound_intents SET audience_snapshot_id='snapshot_b' WHERE id='confirmed_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"outbound_intents\" violates foreign key constraint \"outbound_intents_audience_snapshot_fk\"\nDETAIL:  Key is not present in table \"audience_snapshots\".\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_audience_snapshot_fk\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE outbound_intents SET subject_ref='contact_b' WHERE id='confirmed_a'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"outbound_intents\" violates foreign key constraint \"outbound_intents_subject_fk\"\nDETAIL:  Key is not present in table \"contacts\".\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_subject_fk\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; INSERT INTO audit_log(tenant_id,actor_id,action,detail)VALUES('tenant_a','actor_api','synthetic_append','expected allowed'); ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE audit_log SET detail='rewritten'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: permission denied for table audit_log\nLOCATION:  aclcheck_error, aclchk.c:2812\n"
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; DELETE FROM audit_log; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: permission denied for table audit_log\nLOCATION:  aclcheck_error, aclchk.c:2812\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; UPDATE memberships SET roles=ARRAY['owner'],scopes=ARRAY['marketing.*'] WHERE actor_id='actor_api'; ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  42501: permission denied for table memberships\nLOCATION:  aclcheck_error, aclchk.c:2812\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; INSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','duplicate','confirmed_key','campaign_a','duplicate','email','synthetic-hash','approval_a','snapshot_a','synthetic-evidence','queued'); ROLLBACK;",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23505: duplicate key value violates unique constraint \"outbound_intents_operation_key\"\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_operation_key\nLOCATION:  _bt_check_unique, nbtinsert.c:666\n"
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_original",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='tenant_a';INSERT INTO approvals(tenant_id,approval_ref,approver_actor_id,approver_is_human,revision_hash,audience_max_hash,purpose,channel,cost_ceiling_amount,cost_ceiling_currency,policy_version,expires_at) VALUES('tenant_a','approval_rollback','reviewer',true,'h','h','marketing','email',1,'EUR','p1',now()+interval '1 day');INSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','invalid_parent','invalid_parent','missing_campaign','invalid_parent','email','synthetic-hash','approval_a','snapshot_a','synthetic-evidence','queued');COMMIT",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "ERROR:  23503: insert or update on table \"outbound_intents\" violates foreign key constraint \"outbound_intents_tenant_id_campaign_id_fkey\"\nDETAIL:  Key is not present in table \"campaigns\".\nSCHEMA NAME:  public\nTABLE NAME:  outbound_intents\nCONSTRAINT NAME:  outbound_intents_tenant_id_campaign_id_fkey\nLOCATION:  ri_ReportViolation, ri_triggers.c:2608\n"
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT count(*)FROM approvals WHERE approval_ref='approval_rollback'",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "DELETE FROM outbound_intents WHERE id LIKE 'race_%';DELETE FROM contacts WHERE id LIKE 'race_%';INSERT INTO contacts(tenant_id,id,email_ref,country,locale,lifecycle_stage,interest_topic) VALUES('tenant_a','race_1','synthetic-ref','ES','es','lead','synthetic');INSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','race_1','race_1','campaign_a','race_1','email','synthetic-hash','approval_a','snapshot_a','synthetic-evidence','queued');",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; WITH candidate AS (\n SELECT tenant_id,id FROM outbound_intents\n WHERE tenant_id='tenant_a' AND state='queued' AND id LIKE 'race_%'\n ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1\n) UPDATE outbound_intents AS i SET state='leased',lease_fence=i.lease_fence+1,\n attempts=i.attempts+1,updated_at=now()\n FROM candidate AS c WHERE i.tenant_id=c.tenant_id AND i.id=c.id\n RETURNING i.id,i.lease_fence; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='tenant_a';WITH candidate AS (\n SELECT tenant_id,id FROM outbound_intents\n WHERE tenant_id='tenant_a' AND state='queued' AND id LIKE 'race_%'\n ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1\n) UPDATE outbound_intents AS i SET state='leased',lease_fence=i.lease_fence+1,\n attempts=i.attempts+1,updated_at=now()\n FROM candidate AS c WHERE i.tenant_id=c.tenant_id AND i.id=c.id\n RETURNING i.id,i.lease_fence;COMMIT",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT id||'|'||state||'|'||attempts FROM outbound_intents WHERE id LIKE 'race_%' ORDER BY id",
+      "exit_code": 0,
+      "stdout": "race_1|leased|1\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "DELETE FROM outbound_intents WHERE id LIKE 'race_%';DELETE FROM contacts WHERE id LIKE 'race_%';INSERT INTO contacts(tenant_id,id,email_ref,country,locale,lifecycle_stage,interest_topic) VALUES('tenant_a','race_1','synthetic-ref','ES','es','lead','synthetic');INSERT INTO contacts(tenant_id,id,email_ref,country,locale,lifecycle_stage,interest_topic) VALUES('tenant_a','race_2','synthetic-ref','ES','es','lead','synthetic');INSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','race_1','race_1','campaign_a','race_1','email','synthetic-hash','approval_a','snapshot_a','synthetic-evidence','queued');INSERT INTO outbound_intents(tenant_id,id,operation_key,campaign_id,subject_ref,channel,payload_hash,approval_ref,audience_snapshot_id,eligibility_ref,state) VALUES('tenant_a','race_2','race_2','campaign_a','race_2','email','synthetic-hash','approval_a','snapshot_a','synthetic-evidence','queued');",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN; SET LOCAL app.tenant_id='tenant_a'; WITH candidate AS (\n SELECT tenant_id,id FROM outbound_intents\n WHERE tenant_id='tenant_a' AND state='queued' AND id LIKE 'race_%'\n ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1\n) UPDATE outbound_intents AS i SET state='leased',lease_fence=i.lease_fence+1,\n attempts=i.attempts+1,updated_at=now()\n FROM candidate AS c WHERE i.tenant_id=c.tenant_id AND i.id=c.id\n RETURNING i.id,i.lease_fence; ROLLBACK;",
+      "exit_code": 0,
+      "stdout": "race_2|1\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_worker_test",
+      "database": "mkt_original",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='tenant_a';WITH candidate AS (\n SELECT tenant_id,id FROM outbound_intents\n WHERE tenant_id='tenant_a' AND state='queued' AND id LIKE 'race_%'\n ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1\n) UPDATE outbound_intents AS i SET state='leased',lease_fence=i.lease_fence+1,\n attempts=i.attempts+1,updated_at=now()\n FROM candidate AS c WHERE i.tenant_id=c.tenant_id AND i.id=c.id\n RETURNING i.id,i.lease_fence;COMMIT",
+      "exit_code": 0,
+      "stdout": "race_2|1\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT id||'|'||state||'|'||attempts FROM outbound_intents WHERE id LIKE 'race_%' ORDER BY id",
+      "exit_code": 0,
+      "stdout": "race_1|leased|1\nrace_2|leased|1\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "postgres",
+      "sql": "CREATE DATABASE mkt_ddl_rollback",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_ddl_rollback",
+      "sql": "SELECT count(*)FROM information_schema.tables WHERE table_schema='public'",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "UPDATE approvals SET revoked_at=now() WHERE tenant_id='tenant_a' AND approval_ref='approval_a'",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "postgres",
+      "sql": "CREATE DATABASE mkt_restored",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_restored",
+      "sql": "SELECT suppressed FROM contacts WHERE tenant_id='tenant_a' AND id='contact_a'",
+      "exit_code": 0,
+      "stdout": "t\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT suppressed FROM contacts WHERE tenant_id='tenant_a' AND id='contact_a'",
+      "exit_code": 0,
+      "stdout": "t\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_restored",
+      "sql": "SELECT revoked_at IS NOT NULL FROM approvals WHERE tenant_id='tenant_a' AND approval_ref='approval_a'",
+      "exit_code": 0,
+      "stdout": "t\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT revoked_at IS NOT NULL FROM approvals WHERE tenant_id='tenant_a' AND approval_ref='approval_a'",
+      "exit_code": 0,
+      "stdout": "t\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_restored",
+      "sql": "SELECT state FROM outbound_intents WHERE tenant_id='tenant_a' AND id='confirmed_a'",
+      "exit_code": 0,
+      "stdout": "confirmed\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT state FROM outbound_intents WHERE tenant_id='tenant_a' AND id='confirmed_a'",
+      "exit_code": 0,
+      "stdout": "confirmed\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_restored",
+      "sql": "SELECT count(*)FROM receipts WHERE tenant_id='tenant_a'",
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT count(*)FROM receipts WHERE tenant_id='tenant_a'",
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_restored",
+      "sql": "SELECT detail FROM audit_log WHERE tenant_id='tenant_a'",
+      "exit_code": 0,
+      "stdout": "preserve me\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT detail FROM audit_log WHERE tenant_id='tenant_a'",
+      "exit_code": 0,
+      "stdout": "preserve me\n",
+      "stderr": ""
+    },
+    {
+      "role": "mkt_api_test",
+      "database": "mkt_restored",
+      "sql": "BEGIN;SET LOCAL app.tenant_id='tenant_a';SELECT count(*)FROM contacts WHERE tenant_id<>'tenant_a';ROLLBACK",
+      "exit_code": 0,
+      "stdout": "0\n",
+      "stderr": ""
+    },
+    {
+      "role": "lab_admin",
+      "database": "mkt_original",
+      "sql": "SELECT version()",
+      "exit_code": 0,
+      "stdout": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit\n",
+      "stderr": ""
+    }
+  ]
+}

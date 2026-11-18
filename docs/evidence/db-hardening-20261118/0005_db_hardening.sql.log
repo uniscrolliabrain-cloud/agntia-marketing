@@ -1,0 +1,14 @@
+ALTER TABLE
+ALTER TABLE
+DROP POLICY
+CREATE POLICY
+REVOKE
+GRANT
+DO
+REVOKE
+GRANT
+REVOKE
+GRANT
+DO
+
+psql:/workspace/chats/805d32fda8bf94c57eaad33c/db/migrations/0005_db_hardening.sql:21: NOTICE:  policy "tenant_isolation" for relation "tenants" does not exist, skipping

@@ -2,6 +2,12 @@
 
 Fecha: 2026-11-18. Fuente revisada: `uniscrolliabrain-cloud/agntia-marketing` @ **`1a848a49775407997a9550fbe58d27bcde222208`** (`main` observado). Decisión: **CHANGES_REQUESTED para la capa DB**. No se modifica el SQL de producción ni se declara completado el worker PostgreSQL.
 
+> **Actualización posterior:** los ocho hallazgos de este informe están
+> corregidos en `db/migrations/0005_db_hardening.sql` y revalidados en un clúster
+> Postgres 16 nuevo (38/38). Resultados en
+> `docs/evidence/db-hardening-20261118/`. Este documento se conserva como
+> registro de la revisión sobre `1a848a4`; no se reescribe su resultado.
+
 ## Resultado
 
 Se compiló **PostgreSQL 16.16 oficial**, se instaló bajo una carpeta de trabajo y se arrancó con `initdb` + `pg_ctl`, sin Docker, root ni instalación global. Se verificó el SHA-256 del tarball oficial: `9d5cd8633043b75740d5d59749c6b7365e6aeb53c47098b1a5e80bb18f87881a`.
