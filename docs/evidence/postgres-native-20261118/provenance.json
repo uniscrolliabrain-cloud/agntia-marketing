@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "reviewed_sha": "1a848a49775407997a9550fbe58d27bcde222208",
+  "sources": {
+    "db/migrations/0001_schema.sql": {
+      "sha256": "7161ec4a0249c86037732e0ec8b13f45fb5eb5366a3123b83a7c4b95e33f2397",
+      "git_blob": "fd5fffba0a6553dca72d7da1e10df00b0502f182"
+    },
+    "db/migrations/0002_rls.sql": {
+      "sha256": "6d9700a35759275a2ba483432dc982d8d772fb903e2963c1dd7d2ee310c02016",
+      "git_blob": "900f80e65de72f3e1c586ebd87cc6f5e68951021"
+    },
+    "db/README.md": {
+      "sha256": "bdbe368bcd901c0780d8034972565da02b45df98f7fd6bced1b850f465101597",
+      "git_blob": "9b1bce59fb09012fd4d22269b1412b8a14f491bb"
+    },
+    "packages/core/src/store.ts": {
+      "sha256": "1364d8fdbf755543dd16a769936534dedb98eb41c4e4157a152062362644bd77",
+      "git_blob": "58441b91d746f2627e3966b9670aac84d165eabe"
+    },
+    "packages/core/src/delivery.ts": {
+      "sha256": "f5d3e5d5ed71497b2d43e775db767d7cb9d98b4e89a1824c34b2733da9c79943",
+      "git_blob": "ee3fc75f9a4613eb544e172e10acdede5c8f0728"
+    },
+    "apps/worker/src/worker.ts": {
+      "sha256": "e472cef6cd1824028475db03c802bd9eee3c1ffcdc8dd00aefad80944f7b56bb",
+      "git_blob": "1efc69eac520763493bdcffbbc511e5946a5125b"
+    },
+    "apps/worker/src/main.ts": {
+      "sha256": "5c6cad7c6000ed3acd453282733521304e4b480de7fbc9b2610c2602891c2db0",
+      "git_blob": "4264f78364c5a57b10e2250501015442a273c7b3"
+    }
+  },
+  "postgres": {
+    "version": "16.16",
+    "source": "https://ftp.postgresql.org/pub/source/v16.16/postgresql-16.16.tar.bz2",
+    "sha256": "9d5cd8633043b75740d5d59749c6b7365e6aeb53c47098b1a5e80bb18f87881a",
+    "compiled_from_official_source": true,
+    "docker_used": false,
+    "host": "Debian 13 x86_64",
+    "compiler": "gcc 14.2.0",
+    "flags": "--without-readline --without-icu --with-ssl=openssl",
+    "system_install": false,
+    "tcp_listen": false,
+    "socket_permission": "0700",
+    "fsync": true
+  },
+  "runs": [
+    {
+      "checks": 34,
+      "pass": 27,
+      "fail": 7
+    },
+    {
+      "checks": 35,
+      "pass": 27,
+      "fail": 8,
+      "reason": "added audit append/sequence privilege check and repeated all checks on a fresh cluster"
+    }
+  ],
+  "product_modified": false,
+  "parent_modified": false,
+  "gates_automatically_promoted": 0
+}

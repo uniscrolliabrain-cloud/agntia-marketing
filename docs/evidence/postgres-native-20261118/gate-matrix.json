@@ -1,0 +1,32 @@
+[
+  {
+    "id": "MKT-C06-G01",
+    "status": "FAIL_DB_PART",
+    "reason": "3 missing outbound_intents FKs; API-to-DB path absent"
+  },
+  {
+    "id": "MKT-C06-G02",
+    "status": "PARTIAL",
+    "reason": "Native SQL rollback and transactional DDL pass; product migration/commit adapter absent"
+  },
+  {
+    "id": "MKT-C22-G01",
+    "status": "NOT_VERIFIED_PRODUCT",
+    "reason": "Two SQL sessions use SKIP LOCKED successfully; no PG-backed product worker or real provider crash/ACK path"
+  },
+  {
+    "id": "MKT-C22-G02",
+    "status": "NOT_VERIFIED_PRODUCT",
+    "reason": "Tenant suspension/takeover PEP is not wired to a PostgreSQL worker"
+  },
+  {
+    "id": "MKT-C41-G01",
+    "status": "NOT_VERIFIED",
+    "reason": "Remote pause/ACK requires a real provider; not exercised"
+  },
+  {
+    "id": "MKT-C41-G02",
+    "status": "PARTIAL",
+    "reason": "Native dump/restore preserves rows/RLS/suppression/revocation; no product worker replay or restore protocol"
+  }
+]
