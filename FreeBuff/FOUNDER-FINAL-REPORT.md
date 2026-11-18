@@ -59,7 +59,10 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 ## 8. Riesgos y deuda técnica
 
 1. Persistencia en memoria: el SQL ya está verificado, pero el API sigue en memoria y reiniciar pierde intents y auditoría. Es la campaña asignada a otro agente.
-2. El aislamiento RLS está probado en SQL; falta probarlo a través del API.
+2. El aislamiento RLS está probado en SQL; falta probarlo a través del API de datos.
+   **Actualización 2026-11-18:** el endpoint administrativo ya ejercita RLS a
+   través del API (`tests/db/admin-api.test.ts`); el camino de datos sigue en
+   memoria.
 3. Rate limit: el contador compartido existe y está probado; falta despliegue multi-instancia.
 4. Aprobación de journey por revisión completa, no por paso.
 5. Sin firma en los ACK de handoff entre servicios.
@@ -75,7 +78,7 @@ valores y sin crear el proyecto: eso requiere tu autorización.
 
 ## 10. Propuesta de integración con el padre
 
-`FreeBuff/INTEGRATION-AGENTE-PROPOSAL.md`: superficie HTTP, 30 capacidades,
+`FreeBuff/INTEGRATION-AGENTE-PROPOSAL.md`: superficie HTTP, 31 capacidades,
 twins, eventos, mandatos, dependencias, pruebas conjuntas, rollback y seis
 cambios propuestos en `agente`. Ninguno aplicado.
 

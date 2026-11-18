@@ -11,8 +11,8 @@
   },
   {
     "id": "MKT-C06-G03",
-    "status": "PARTIAL",
-    "reason": "Flujo administrativo auditado (0006) probado en SQL; no existe endpoint administrativo en el API"
+    "status": "PASS",
+    "reason": "POST /v1/marketing/admin/actions escribe por marketing_admin con admin_actions y se ejerció contra Postgres real (tests/db/admin-api.test.ts, 6 pruebas; docs/evidence/admin-api-20261118). El tenant y el actor se resuelven del JWT verificado + membership en memoria: el camino de datos sigue sin persistencia (G01/G02)"
   },
   {
     "id": "MKT-C22-G01",

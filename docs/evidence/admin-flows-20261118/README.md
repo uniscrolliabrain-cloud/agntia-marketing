@@ -68,9 +68,19 @@ siguen en PASS: `0006` no relaja ninguno de los `revoke` de `0005`.
 
 ## Límites que quedan abiertos
 
-- **No hay endpoint administrativo en el API.** El flujo está probado en SQL; hoy
-  `apps/api` no expone ninguna ruta que abra una sesión `marketing_admin`. Por eso
-  el gate nuevo `MKT-C06-G03` queda en `PARTIAL`, no en PASS.
+> **Actualización 2026-11-18:** el endpoint administrativo ya existe.
+> `POST /v1/marketing/admin/actions` (capacidad `marketing.tenant.admin`, owner
+> humano + ticket) abre la sesión `marketing_admin` y deja `admin_actions` en la
+> misma transacción. Verificado contra Postgres real en 6 pruebas:
+> `docs/evidence/admin-api-20261118/`. El gate `MKT-C06-G03` pasa a `PASS`; el
+> tenant y el actor siguen leyéndose de la membership en memoria, así que el
+> camino de datos del API continúa sin persistencia (`MKT-C06-G01/G02`).
+
+- *(Estado anterior al 2026-11-18, conservado como historia.)* **No había
+  endpoint administrativo en el API**: el flujo sólo estaba probado en SQL y
+  `apps/api` no exponía ninguna ruta que abriera una sesión `marketing_admin`; por
+  eso `MKT-C06-G03` estaba en `PARTIAL`. Ya no es el caso: ver la actualización de
+  arriba y `docs/evidence/admin-api-20261118/`.
 - **La garantía no cubre superusuario ni `BYPASSRLS`**, que ya pueden saltarse RLS.
   El trigger se aplica a `marketing_admin`, que es el rol que se concede a la
   aplicación.

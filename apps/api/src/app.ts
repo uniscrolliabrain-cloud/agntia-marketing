@@ -14,6 +14,7 @@ import {
   ObservationSchema,
   PrivacyRequestSchema,
   BudgetScenarioSchema,
+  CapabilitySchema,
   type Capability,
 } from '@agntia/contracts';
 import type { AdapterRegistry } from '@agntia/adapters';
@@ -65,6 +66,7 @@ import {
   type Principal,
 } from '@agntia/core';
 import type { JwtVerifier } from './auth';
+import type { AdminAction, AdminPort } from './admin';
 
 export interface AppDeps {
   ctx: Ctx;
@@ -74,6 +76,11 @@ export interface AppDeps {
   rateLimiter?: RateLimiter;
   /** Secreto HMAC para ACKs de handoff. Sin él, los ACK se emiten sin firma. */
   ackSecret?: string;
+  /**
+   * Vía administrativa sobre Postgres (`marketing_admin` + `admin_actions`).
+   * Sin ella la ruta administrativa responde 424: no se simula en memoria.
+   */
+  admin?: AdminPort;
 }
 
 interface Vars {
@@ -548,6 +555,59 @@ export function createApp(deps: AppDeps) {
     '/v1/marketing/jobs/:id',
     read('marketing.job.read', (_p, c) => {
       throw new MarketingError('NOT_FOUND', `job_not_found:${param(c)}`);
+    }),
+  );
+
+  // ── Administración del tenant (C06/C19) ─────────────────────────────────
+  // El tenant y el actor salen del JWT verificado + membership de servidor; el
+  // cuerpo sólo trae la acción, el ticket y sus parámetros. Sin Postgres la
+  // ruta no finge: responde 424 `admin_persistence_unconfigured`.
+  const AdminTicket = z.string().min(3).max(64).regex(/^[A-Za-z0-9._:-]+$/);
+  const MembershipRoleSchema = z.enum(['owner', 'operator', 'reviewer', 'viewer', 'worker']);
+  const AdminActionSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('audit.purge'), ticket: AdminTicket, retentionDays: z.number().int().min(30).max(3650) }).strict(),
+    z
+      .object({
+        kind: z.literal('membership.upsert'),
+        ticket: AdminTicket,
+        membership: z
+          .object({
+            actorId: z.string().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/),
+            roles: z.array(MembershipRoleSchema).min(1).max(5),
+            scopes: z.array(z.union([CapabilitySchema, z.literal('marketing.*')])).min(1).max(40),
+            isHuman: z.boolean(),
+          })
+          .strict(),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('tenant.set-plan'),
+        ticket: AdminTicket,
+        plan: z.enum(['sandbox', 'pilot', 'production']),
+        name: z.string().min(1).max(160).optional(),
+      })
+      .strict(),
+  ]);
+
+  app.post(
+    '/v1/marketing/admin/actions',
+    mutate('marketing.tenant.admin', AdminActionSchema, async (p, body, c) => {
+      const admin = deps.admin;
+      if (!admin) throw new MarketingError('DEPENDENCY_MISSING', 'admin_persistence_unconfigured');
+      const action: AdminAction =
+        body.kind === 'audit.purge'
+          ? { kind: 'audit.purge', retentionDays: body.retentionDays }
+          : body.kind === 'membership.upsert'
+            ? { kind: 'membership.upsert', membership: body.membership }
+            : { kind: 'tenant.set-plan', plan: body.plan, ...(body.name ? { name: body.name } : {}) };
+      return admin.execute({
+        tenantId: p.tenantId,
+        actorId: p.actorId,
+        ticket: body.ticket,
+        idempotencyKey: c.req.header('idempotency-key') ?? '',
+        action,
+      });
     }),
   );
 

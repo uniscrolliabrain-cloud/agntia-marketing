@@ -18,8 +18,9 @@ Las operaciones que `0005` cerró al rol de datos —purga de auditoría, cambio
 membresías y de plan— tienen desde `0006` una vía propia y auditada
 (`marketing_admin` + `admin_actions`), probada en `tests/db/postgres.test.ts`
 (18 pruebas) y en el runner nativo (39/39,
-`docs/evidence/admin-flows-20261118/`). Lo que aún no existe es el endpoint
-administrativo en el API.
+`docs/evidence/admin-flows-20261118/`). El API la expone en
+`POST /v1/marketing/admin/actions` desde el 2026-11-18; la verificación de esa
+ruta está en `docs/evidence/admin-api-20261118/`.
 
 ## Migraciones
 
@@ -93,6 +94,42 @@ La **provisión** de un tenant (`insert` en `tenants`) queda fuera del trigger a
 propósito: la fila aún no existe y el registro la referencia por FK. Es un
 bootstrap de plataforma; la acción se registra justo después, ya sobre el tenant
 nuevo.
+
+### Endpoint administrativo
+
+`POST /v1/marketing/admin/actions` (capacidad `marketing.tenant.admin`) es el
+único camino del API hacia `marketing_admin`. Exige **owner humano** y un ticket;
+el `tenantId` y el `actorId` salen del JWT verificado y de la membership de
+servidor, nunca del cuerpo.
+
+```json
+{ "kind": "audit.purge", "ticket": "CHG-2026-0042", "retentionDays": 365 }
+```
+
+```json
+{
+  "kind": "membership.upsert",
+  "ticket": "CHG-2026-0042",
+  "membership": { "actorId": "ops_2", "roles": ["reviewer"], "scopes": ["marketing.context.read"], "isHuman": true }
+}
+```
+
+```json
+{ "kind": "tenant.set-plan", "ticket": "CHG-2026-0042", "plan": "pilot" }
+```
+
+Requiere `Idempotency-Key`: el identificador de la acción se deriva de esa clave,
+así que repetir la petición no duplica el registro ni vuelve a aplicar el efecto.
+Sin `DATABASE_URL` la ruta responde `424 admin_persistence_unconfigured`: no se
+simula en memoria. Si el tenant no existe en Postgres, la FK de `admin_actions`
+lo rechaza con `23503` y el API responde `404`.
+
+El rol de login del API debe poder asumir `marketing_admin`; sin esa concesión la
+ruta responde `424 admin_role_not_granted`:
+
+```sql
+grant marketing_admin to <rol_de_login_del_api>;
+```
 
 **Antes de aplicar `0005` sobre datos existentes** hay que resolver las
 referencias huérfanas; si no, la FK falla (correctamente) con `23503`:

@@ -68,11 +68,15 @@ export const EFFECT_CLASS: Record<Capability, EffectClass> = {
   'marketing.advisor.session': 'prepare',
   'marketing.job.read': 'read',
   'marketing.privacy.request': 'effect',
+  'marketing.tenant.admin': 'effect',
 };
 
 const READ_ROLES = new Set(['owner', 'operator', 'reviewer', 'viewer', 'worker']);
 const PREPARE_ROLES = new Set(['owner', 'operator', 'reviewer']);
 const EFFECT_ROLES = new Set(['owner', 'operator']);
+// Administrar el tenant (plan, membresías, purga) no es una operación de
+// campaña: un operator no cambia roles ni el plan de su propio tenant.
+const ADMIN_ROLES = new Set(['owner']);
 
 export function resolvePrincipal(ctx: Ctx, jwt: VerifiedJwt, capability: Capability): Principal {
   const parsed = CapabilitySchema.safeParse(capability);
@@ -97,6 +101,11 @@ export function resolvePrincipal(ctx: Ctx, jwt: VerifiedJwt, capability: Capabil
 export function authorize(principal: Principal, capability: Capability): void {
   if (!principal.scopes.includes(capability) && !principal.scopes.includes('marketing.*')) {
     throw new MarketingError('FORBIDDEN', 'capability_not_granted');
+  }
+  if (capability === 'marketing.tenant.admin') {
+    if (!principal.isHuman) throw new MarketingError('FORBIDDEN', 'effect_requires_human');
+    if (!principal.roles.some((r) => ADMIN_ROLES.has(r))) throw new MarketingError('FORBIDDEN', 'role_not_allowed');
+    return;
   }
   const effect = EFFECT_CLASS[capability];
   const allowed =

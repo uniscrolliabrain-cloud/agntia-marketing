@@ -1,7 +1,9 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import type { Pool } from 'pg';
 import { createRegistry } from '@agntia/adapters';
 import { createStore } from '@agntia/core';
+import { PgAdminService } from './admin';
 import { createApp } from './app';
 import { createSupabaseJwtVerifier } from './auth';
 import { PgRateLimiter } from './ratelimit-pg';
@@ -28,21 +30,32 @@ const verifier = createSupabaseJwtVerifier({
   requiredRole: 'authenticated',
 });
 
-// Con `DATABASE_URL` el rate limit es compartido; sin ella cae a memoria y el
-// proceso lo declara, porque el límite efectivo se multiplica por instancia.
-let rateLimiter;
+// Con `DATABASE_URL` el rate limit es compartido y la ruta administrativa tiene
+// su vía real (`marketing_admin` + `admin_actions`); sin ella caen a memoria y
+// a 424 respectivamente, y el proceso lo declara: el límite efectivo se
+// multiplica por instancia y no hay administración que fingir.
+let pool: Pool | undefined;
 if (process.env.DATABASE_URL) {
   const { default: pg } = await import('pg');
-  rateLimiter = new PgRateLimiter(new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 }));
-} else {
-  console.warn('rate_limiter=memory: el límite no se comparte entre instancias');
+  pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
 }
+const rateLimiter = pool ? new PgRateLimiter(pool) : undefined;
+if (!rateLimiter) console.warn('rate_limiter=memory: el límite no se comparte entre instancias');
+const admin = pool ? new PgAdminService(pool) : undefined;
+if (!admin) console.warn('admin_api=unconfigured: POST /v1/marketing/admin/actions responde 424');
 
 const ackSecret = process.env.HANDOFF_ACK_SECRET;
 if (!ackSecret) console.warn('handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs');
 else if (ackSecret.length < 16) throw new Error('HANDOFF_ACK_SECRET_too_short');
 
-const app = createApp({ ctx: createStore(), registry: createRegistry(), verifier, ...(rateLimiter ? { rateLimiter } : {}), ...(ackSecret ? { ackSecret } : {}) });
+const app = createApp({
+  ctx: createStore(),
+  registry: createRegistry(),
+  verifier,
+  ...(rateLimiter ? { rateLimiter } : {}),
+  ...(admin ? { admin } : {}),
+  ...(ackSecret ? { ackSecret } : {}),
+});
 app.use('/portal/*', serveStatic({ root: './apps/portal/public', rewriteRequestPath: (p) => p.replace(/^\/portal/, '') || '/' }));
 
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {

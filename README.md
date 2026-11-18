@@ -2,14 +2,14 @@
 
 Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental 3/9 · 12 de noviembre de 2026.
 
-**IMPLEMENTADO EN `main`.** Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor. El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. Postgres 16 sí se ha ejecutado: la capa SQL está verificada con un runner nativo y evidencia auditable ([db](db/README.md)), pero **el API y el worker siguen usando el store en memoria**, así que la persistencia de producto se declara `NOT_VERIFIED`. No hay proveedores conectados: esas capacidades están deshabilitadas y no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
+**IMPLEMENTADO EN `main`.** Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor. El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. Postgres 16 sí se ha ejecutado: la capa SQL está verificada con un runner nativo y evidencia auditable ([db](db/README.md)), pero **el API y el worker siguen usando el store en memoria**, así que la persistencia de producto se declara `NOT_VERIFIED` (la única ruta que ya escribe en Postgres es la administrativa, `POST /v1/marketing/admin/actions`, verificada el 2026-11-18). No hay proveedores conectados: esas capacidades están deshabilitadas y no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
 
 ## Implementación
 
 ```bash
 npm install
 npm run typecheck     # tsc estricto, sin emitir
-npm test              # 125 pruebas (107 de campañas + 18 de Postgres real)
+npm test              # 131 pruebas (107 de campañas + 18 de Postgres real + 6 del endpoint administrativo)
 npm run api:dev       # API Hono en :8787 (portal en /portal/)
 npm run worker:dev    # ciclo outbox → sandbox → receipt
 ```
@@ -20,7 +20,7 @@ npm run worker:dev    # ciclo outbox → sandbox → receipt
 | `packages/core` | autoridad, aprobaciones, consentimiento, audiencias, FSM, outbox, medición |
 | `packages/adapters` | proveedores en stub deshabilitados + entrega sandbox local |
 | `packages/sdk` | cliente allowlist, 8 tools y bridge al padre |
-| `apps/api` | Hono con JWT de Supabase, PEP por capacidad e idempotencia |
+| `apps/api` | Hono con JWT de Supabase, PEP por capacidad, idempotencia y ruta administrativa auditada |
 | `apps/worker` | outbox con fence, receipts y cierre de campaña |
 | `apps/portal` | portal responsive mínimo |
 | `db/migrations` | esquema Postgres, RLS forzada y flujo administrativo auditado (`0001`–`0006`, **ejecutados y verificados** en 16.15) |

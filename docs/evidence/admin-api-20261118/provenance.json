@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "c77ee69cfb8302a390140b7a295b89097a0f77d0",
+  "reviewed_source": "working tree over main c77ee69 (endpoint administrativo + capacidad marketing.tenant.admin)",
+  "sources": {
+    "apps/api/src/admin.ts": {
+      "sha256": "066dd600db890c63a7357c22e83e2dc1ce91e3b19f46b0c54e1465e884634e54"
+    },
+    "apps/api/src/app.ts": {
+      "sha256": "b4d006c1ff8696e3e19f6ee8b5927398e743efed7f2e05cfca41ab17231a401c"
+    },
+    "apps/api/src/server.ts": {
+      "sha256": "7afac78aa82989114acd36e10bbbf01cb5e111b73191b3c62978d5d26474811c"
+    },
+    "tests/db/admin-api.test.ts": {
+      "sha256": "1405f6c921d099b40e75d306703680b85c5f010b8cd0f8f6ef1b3e61a5c4eb29"
+    },
+    "packages/contracts/src/envelope.ts": {
+      "sha256": "702bca05e952fed8f10626484ae7ef2e4f34f3d5812a2645eb061552d46deb90"
+    },
+    "packages/core/src/authority.ts": {
+      "sha256": "f7150033b6fe7726f424a07fe10ed4a04eac21be59df482226c23aaeee354c00"
+    },
+    "db/README.md": {
+      "sha256": "0aec1f9ae4afc39c5c98ebd864d80a01cae89ad525f49e0e21c9e861c9ee2267"
+    }
+  },
+  "postgres": {
+    "version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "source": "Ubuntu 24.04 packages postgresql-16 (extracted in user space)",
+    "docker_used": false,
+    "port": 55432,
+    "database": "agntia_final",
+    "role_used_by_endpoint": "marketing_admin (SET LOCAL ROLE desde el rol de login)"
+  },
+  "runs": [
+    {
+      "suite": "tests/db/admin-api.test.ts",
+      "tests": 6,
+      "pass": 6,
+      "fail": 0
+    },
+    {
+      "suite": "npx vitest run (completa)",
+      "tests": 131,
+      "pass": 131,
+      "fail": 0
+    }
+  ],
+  "typecheck": {
+    "command": "npx tsc -p tsconfig.json --noEmit",
+    "exit_code": 0
+  },
+  "gates_promoted": ["MKT-C06-G03"],
+  "limitations": [
+    "La membership del API se sigue leyendo del store en memoria; el camino de datos no persiste (MKT-C06-G01/G02 siguen PARTIAL).",
+    "El rol de login del API debe ser miembro de marketing_admin; sin esa concesión la ruta responde 424.",
+    "No se ejecutó worker ni proveedor real."
+  ]
+}

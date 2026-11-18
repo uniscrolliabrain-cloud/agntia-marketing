@@ -132,6 +132,11 @@ un verde local sin `DATABASE_URL` **no** prueba persistencia.
   `app.admin_ticket` y `app.admin_actor` fijados en la misma transacción. Si tu
   repositorio necesita purgar auditoría o cambiar membresías, **no añadas grants al
   rol de datos**: usa ese camino (ver `db/README.md`).
+- Desde el 2026-11-18 el API ya expone ese camino en
+  `POST /v1/marketing/admin/actions` (capacidad `marketing.tenant.admin`, owner
+  humano + ticket); la suite `tests/db/admin-api.test.ts` lo ejerce contra
+  Postgres real. Si escribes el repositorio de producto, **no dupliques** ese
+  camino ni añadas `insert`/`update` a `authenticated`.
 - RLS está **forzada**: el owner de la tabla tampoco se libra. Los tests usan
   `set local role authenticated`; el superusuario sí la salta, no lo uses para
   "verificar" aislamiento.

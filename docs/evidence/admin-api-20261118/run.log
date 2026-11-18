@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /workspace/chats/805d32fda8bf94c57eaad33c
+
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > purga sólo lo vencido del propio tenant y deja el registro con el actor verificado
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > cambia membresía y plan por la vía registrada
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > rechaza a quien no es owner humano y no escribe nada
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > la misma clave de idempotencia no duplica la acción ni repite el efecto
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > falla cerrado: tenant ausente en Postgres no se escribe y el ticket inválido se rechaza
+ ✓ tests/db/admin-api.test.ts > MKT-C06-G03 · endpoint administrativo sobre Postgres real > sin puerto administrativo el API no simula la operación
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  16:14:37
+   Duration  968ms (transform 302ms, setup 0ms, collect 476ms, tests 239ms, environment 0ms, prepare 88ms)
+

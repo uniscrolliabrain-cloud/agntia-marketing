@@ -22,6 +22,7 @@ API HTTP (Hono) bajo `/v1/marketing`, envelope v1 con `status`, `operationId`,
 | Medición | `POST /observations`, `POST /conversions`, `POST /reports`, `GET /reports/:id`, `POST /budget-scenarios`, `POST /measurement-runs`, `POST /experiment-proposals`, `POST /seo-audits`, `POST /aeo-observations`, `POST /search-performance` |
 | Ads | `POST /ads/proposals` |
 | Privacidad y cooperación | `POST /privacy-requests`, `POST /privacy-requests/:id/fulfil`, `POST /handoffs`, `POST /handoffs/:id/respond`, `POST /handoffs/expire`, `GET /conflicts`, `GET /events` |
+| Administración del tenant | `POST /admin/actions` (owner humano + ticket; escribe por `marketing_admin` y deja `admin_actions`) |
 | Asesor | `POST /advisor-sessions`, `POST /advisor-sessions/:id/close` |
 | Integraciones | `POST /integrations`, `GET /integrations`, `GET /integrations/:id/capabilities` |
 | Worker interno | `POST /internal/deliver` (sandbox) |
@@ -32,7 +33,7 @@ o shell genéricos.
 
 ## 2. Capacidades y clases de efecto
 
-30 capacidades nominadas en `EFFECT_CLASS`:
+31 capacidades nominadas en `EFFECT_CLASS`:
 
 - **read:** `context.read`, `integration.read`, `brief.read`, `audience.preview`,
   `campaign.preview`, `journey.preview`, `landing.preview`, `observation.read`,
@@ -42,10 +43,16 @@ o shell genéricos.
   `measurement.run`, `budget.scenario`, `ads.propose`, `report.write`,
   `advisor.session`.
 - **effect:** `campaign.commit`, `campaign.pause`, `campaign.reconcile`,
-  `journey.enroll`, `landing.publish`, `ads.validate`, `privacy.request`.
+  `journey.enroll`, `landing.publish`, `ads.validate`, `privacy.request`,
+  `tenant.admin`.
 
 Todo `effect` exige humano con rol owner/operator y aprobación previa vinculada
 (`revisionHash`, `audienceMaxHash`, finalidad, canal, techo de coste, caducidad).
+
+`tenant.admin` es la excepción deliberada: no es una operación de campaña, así
+que exige humano con rol **owner** (un `operator` no cambia roles ni el plan de
+su tenant) y un **ticket** que queda registrado en `admin_actions` dentro de la
+misma transacción (`0006`). Sin registro previo, el trigger responde `42501`.
 
 ## 3. Identidad, tenants y twins
 
@@ -99,7 +106,7 @@ Todo `effect` exige humano con rol owner/operator y aprobación previa vinculada
 
 ## 8. Cambios propuestos en el padre (no aplicados)
 
-1. Registrar `marketing` como servicio especialista con sus 30 capacidades y
+1. Registrar `marketing` como servicio especialista con sus 31 capacidades y
    clases de efecto en el mapa de autoridad del kernel.
 2. Definir el contrato de handoff entrante/saliente con ACK firmado y TTL.
 3. Aceptar el hash de audiencia congelada como prueba de no ampliación, o
