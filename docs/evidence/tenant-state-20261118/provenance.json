@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-18",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "356167f5518231522e673737bbd228859f28ccc2",
+  "reviewed_source": "working tree over main 356167f (migración 0007 + puerto de estado durable por tenant)",
+  "sources": {
+    "db/migrations/0007_tenant_state.sql": {
+      "sha256": "629a406d08368cb2a62509c85f86a1eefd1763ab49247597294f2db23c2da8d9"
+    },
+    "apps/api/src/state.ts": {
+      "sha256": "4c61eff0de60bf0ceeace83d58c077b9f8d40d5ea81e5e9b868d522c59da8e79"
+    },
+    "apps/api/src/app.ts": {
+      "sha256": "89b4291478daca4fac6498e01a23cc8fe04b0183cd742bab7b3235929daaf21d"
+    },
+    "apps/api/src/server.ts": {
+      "sha256": "e0a33e21b265f1cb5414500aee5fdc3cd1054115ec371a6bc267ad6f80853ea7"
+    },
+    "tests/db/tenant-state.test.ts": {
+      "sha256": "cf41f9cc4dc592d463fd363d350aa98b8b8ecd13ab762dd2bb10298b93ad4268"
+    }
+  },
+  "postgres": {
+    "version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "port": 55432,
+    "database": "agntia_final",
+    "docker_used": false,
+    "login_role": "postgres (superusuario del sandbox) con SET LOCAL ROLE authenticated"
+  },
+  "runs": [
+    { "suite": "tests/db/tenant-state.test.ts", "tests": 4, "pass": 4, "fail": 0 },
+    { "suite": "npx vitest run (completa, con DATABASE_URL)", "tests": 141, "pass": 141, "fail": 0 }
+  ],
+  "typecheck": {
+    "command": "npx tsc -p tsconfig.json --noEmit",
+    "exit_code": 0
+  },
+  "http_process_restart": {
+    "command": "DATABASE_URL=... PORT=8792 DEV_JWT_SECRET=<local> npx tsx apps/api/src/server.ts",
+    "processes": [
+      { "id": "proceso 1 (escribe)", "pid": 41023 },
+      { "id": "proceso 2 (reinicio)", "pid": 41105 },
+      { "id": "proceso 3 (lectura tras corrección del script)", "pid": 41253 }
+    ],
+    "port_freed_between_runs": true,
+    "observed": "El brief brf_0f890eaadce443688793 creado por el proceso 1 lo lista el proceso 3 con el mismo id; tenant_state queda con version=1, briefs=1."
+  },
+  "claims_verified": [
+    "El documento de tenant_state es la verdad: una app con store vacío lee campaña, briefs y receipts desde Postgres.",
+    "Commit y entrega persisten y sobreviven a un proceso nuevo con pool y store nuevos.",
+    "Cada mutación sube la versión exactamente una vez; un efecto rechazado no la toca.",
+    "El estado de un tenant no se lee con el token de otro.",
+    "Un servidor HTTP real sirve tras reiniciar lo que escribió el proceso anterior."
+  ],
+  "gates": {
+    "MKT-C06-G01": "PARTIAL (el camino API-to-Postgres ya existe como documento por tenant; falta la ruta normalizada)",
+    "MKT-C06-G02": "PARTIAL (sin adaptador de producto ni rollback probado sobre el documento)",
+    "MKT-C06-G03": "PASS (sin cambio)",
+    "MKT-C22-G01": "NOT_VERIFIED_PRODUCT (el claim sigue sin for update skip locked ni worker PG de producto)",
+    "MKT-C22-G02": "NOT_VERIFIED_PRODUCT",
+    "MKT-C41-G01": "NOT_VERIFIED (sin proveedor real)"
+  },
+  "limitations": [
+    "tenant_state es un documento JSONB por tenant, no las tablas normalizadas de 0001; reescribe el agregado y serializa al tenant.",
+    "El claim de intents no usa for update skip locked: la exclusión mutua viene del cerrojo por tenant.",
+    "Si el proceso muere entre el envío y la escritura del documento, el intent queda queued con el mensaje ya enviado; no hay exactly-once.",
+    "El worker de demostración sigue en memoria; la entrega se ejerció por la ruta interna del API con el adaptador sandbox.",
+    "El rol de login del sandbox es superusuario: la policy se verificó por comportamiento, no con un rol no privilegiado."
+  ]
+}

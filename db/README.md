@@ -36,11 +36,22 @@ npm run db:migrate        # aplica db/migrations/*.sql en orden
 | `0004_rate_limit.sql` | `rate_limit_counters` + `consume_rate_limit(text,int,timestamptz)` |
 | `0005_db_hardening.sql` | RLS en `tenants`, FK compuestas de `outbound_intents`, auditoría append-only y permisos mínimos |
 | `0006_admin_flows.sql` | Rol `marketing_admin`, registro `admin_actions` y triggers que exigen ticket y registro previos |
+| `0007_tenant_state.sql` | Documento de estado por tenant (`tenant_state`) con versión, RLS forzada y un escritor por tenant |
 
 `0002` fallaba en un Postgres limpio (`role "anon" does not exist`) porque asumía
 un proyecto Supabase; ahora los roles se crean de forma idempotente. `0003`
 sustituye la unicidad `(tenant_id, campaign_id, subject_ref)`, que impedía más de
 un paso por sujeto en un journey.
+
+`0007` es **etapa intermedia**, no el destino: el dominio sigue siendo síncrono
+sobre `MemoryStore`, así que `tenant_state` guarda el agregado del tenant como
+documento JSONB y el borde del API lo carga bajo `select … for update`, deja
+correr el dominio y lo escribe antes de responder (un escritor por tenant, sin
+actualizaciones perdidas). Las tablas normalizadas de `0001` son el destino
+cuando la rebanada asíncrona escriba `campaigns`, `outbound_intents` y
+`receipts` con `for update skip locked`; hasta entonces el claim no está
+verificado como cola SQL (`MKT-C22-G01`). Pruebas y límites en
+`docs/evidence/tenant-state-20261118/`.
 
 `0002_rls.sql` habilita y **fuerza** Row Level Security en todas las tablas con
 `tenant_id` y crea la policy `tenant_isolation` contra `app_current_tenant()`.

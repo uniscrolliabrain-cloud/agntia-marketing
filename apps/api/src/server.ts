@@ -8,6 +8,7 @@ import { createApp } from './app';
 import { createSupabaseJwtVerifier } from './auth';
 import { createPgPrincipalResolver } from './principals';
 import { PgRateLimiter } from './ratelimit-pg';
+import { PgTenantStateStore } from './state';
 
 /**
  * Configuración por entorno. En producción se exige JWKS https y nunca se usa
@@ -54,13 +55,20 @@ const ackSecret = process.env.HANDOFF_ACK_SECRET;
 if (!ackSecret) console.warn('handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs');
 else if (ackSecret.length < 16) throw new Error('HANDOFF_ACK_SECRET_too_short');
 
+const ctx = createStore();
+// El documento de estado del tenant es la verdad entre peticiones; sin Postgres
+// el store se queda en el proceso y el reinicio lo pierde, y el proceso lo dice.
+const state = pool ? new PgTenantStateStore(pool, ctx) : undefined;
+if (!state) console.warn('tenant_state=memory: campañas, intents y receipts se pierden al reiniciar');
+
 const app = createApp({
-  ctx: createStore(),
+  ctx,
   registry: createRegistry(),
   verifier,
   ...(rateLimiter ? { rateLimiter } : {}),
   ...(admin ? { admin } : {}),
   ...(principals ? { principals } : {}),
+  ...(state ? { state } : {}),
   ...(ackSecret ? { ackSecret } : {}),
 });
 app.use('/portal/*', serveStatic({ root: './apps/portal/public', rewriteRequestPath: (p) => p.replace(/^\/portal/, '') || '/' }));

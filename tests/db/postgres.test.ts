@@ -17,7 +17,7 @@ const TENANT_TABLES = [
   'memberships', 'contacts', 'twins', 'briefs', 'audience_snapshots', 'creatives', 'claims',
   'approvals', 'campaigns', 'outbound_intents', 'receipts', 'connections', 'observations',
   'conversions', 'reports', 'privacy_requests', 'handoffs', 'service_events', 'audit_log',
-  'idempotency_keys', 'admin_actions',
+  'idempotency_keys', 'admin_actions', 'tenant_state',
 ];
 
 suite('Postgres real · esquema, RLS y outbox', () => {
@@ -87,6 +87,7 @@ suite('Postgres real · esquema, RLS y outbox', () => {
       '0004_rate_limit.sql',
       '0005_db_hardening.sql',
       '0006_admin_flows.sql',
+      '0007_tenant_state.sql',
     ]);
   });
 

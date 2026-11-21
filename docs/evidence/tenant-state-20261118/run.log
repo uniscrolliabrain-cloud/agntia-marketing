@@ -1,0 +1,37 @@
+== estado del tenant durable · humo por red con reinicio de proceso == 
+entorno: Wed Nov 18 17:04:20 UTC 2026 · node v26.13.0 · postgres 16.15 · db agntia_final
+DELETE 0
+INSERT 0 1
+INSERT 0 1
+seed_exit=0
+handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs
+agntia-marketing api escuchando en :8792
+arranque_1=0 proceso_1=[41023]
+== proceso 1 (41023): escribe un brief (mutación → documento en Postgres) ==
+{"step":"write","name":"create_brief","status":200,"briefId":"brf_0f890eaadce443688793"}
+{"step":"write","name":"list_briefs","status":200,"count":null,"titles":[]}
+tanda_1_exit=0
+== se detiene el proceso 41023 ==
+puerto_libre=si
+handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs
+agntia-marketing api escuchando en :8792
+arranque_2=0 proceso_2=[41105]
+proceso_nuevo=si (antes 41023, ahora 41105)
+== proceso 2 (41105): store vacío; sólo puede leer lo que persistió ==
+{"step":"read","name":"list_briefs","status":200,"count":null,"titles":[]}
+tanda_2_exit=0
+== se detiene el proceso 41105 ==
+puerto_libre=si
+== documento en Postgres ==
+     tenant_id      | version | briefs | campaigns | audit 
+--------------------+---------+--------+-----------+-------
+ tenant_smoke_state |       1 |      1 |         0 |     0
+(1 row)
+
+
+== corrección: GET /v1/marketing/briefs devuelve un array pelado, no {payload}. Proceso nuevo sobre la misma base ==
+handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs
+agntia-marketing api escuchando en :8792
+proceso_3=[41253]
+{"step":"read","name":"list_briefs","status":200,"count":1,"titles":["Brief que debe sobrevivir al reinicio"],"ids":["brf_0f890eaadce443688793"]}
+tanda_3_exit=0

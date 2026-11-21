@@ -29,7 +29,7 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: bucle de entrega sandbox.
 - `db/migrations`: esquema con RLS forzada, hardening y flujo administrativo auditado (`0001`–`0006`), **ejecutados y verificados** en Postgres 16.15.
-- `tests/`: 125 pruebas en 8 archivos (incluye integración contra Postgres real).
+- `tests/`: 141 pruebas en 11 archivos (incluye integración contra Postgres real).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables
@@ -59,10 +59,20 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 ## 8. Riesgos y deuda técnica
 
 1. Persistencia en memoria: el SQL ya está verificado, pero el API sigue en memoria y reiniciar pierde intents y auditoría. Es la campaña asignada a otro agente.
+   **Actualización 2026-11-18 (2):** mitigado, no resuelto. El agregado del
+   tenant (campañas, intents, entregas, supresión, operaciones y auditoría) se
+   guarda en `tenant_state` (migración `0007`, escrito bajo `select … for
+   update` por tenant) y un reinicio real de proceso conserva los datos
+   (`docs/evidence/tenant-state-20261118/`). Sigue pendiente el esquema
+   normalizado por rebanada que el worker necesita para tomar trabajo con
+   `for update skip locked`.
 2. El aislamiento RLS está probado en SQL; falta probarlo a través del API de datos.
    **Actualización 2026-11-18:** el endpoint administrativo ya ejercita RLS a
    través del API (`tests/db/admin-api.test.ts`); el camino de datos sigue en
    memoria.
+   **Actualización 2026-11-18 (2):** el camino de datos también pasa por RLS: el
+   API abre transacción con rol `authenticated` y `request.jwt.claims`, y
+   `tenant_state` tiene RLS forzada con el mismo predicado de tenant.
 3. Rate limit: el contador compartido existe y está probado; falta despliegue multi-instancia.
 4. Aprobación de journey por revisión completa, no por paso.
 5. Sin firma en los ACK de handoff entre servicios.

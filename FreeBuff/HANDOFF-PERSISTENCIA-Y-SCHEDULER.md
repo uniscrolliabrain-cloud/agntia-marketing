@@ -217,3 +217,31 @@ commit → lease → delivery → receipt en Postgres—, sigue entera, y por es
 `MKT-C06-G01/G02` y `MKT-C22-G01/G02` conservan su estado. La aceptación 4
 (aislamiento a través del API con datos reales) queda cubierta para la vía
 administrativa y la resolución de principal, no para el camino de entrega.
+
+### Actualización 2026-11-18 (2): la «rebanada» no era separable
+
+Al leer el dominio antes de migrarlo apareció el problema que esta tabla no
+anticipaba: `commitCampaign` revalida elegibilidad, frecuencia y supresión
+leyendo `contacts` y `contactPolicies`, y `leaseIntents` vuelve a revalidar antes
+del efecto. Persistir sólo el outbox y dejar los contactos en memoria habría dado
+una persistencia falsa: tras un reinicio la revalidación vería cero contactos y
+cancelaría todo. La rebanada arrastra casi todo el agregado.
+
+Etapa 1 ejecutada (ver `docs/evidence/tenant-state-20261118/`): `0007` añade
+`tenant_state(tenant_id, version, state jsonb)` y `apps/api/src/state.ts` exporta
+el agregado del tenant, lo importa bajo `select … for update`, corre el dominio
+síncrono y lo escribe antes de responder. El documento es la verdad; la memoria
+es su caché de un turno.
+
+Verificado: una app con store vacío lee la campaña, la compromete, la entrega y
+la sigue viendo con un pool y un store nuevos; cada mutación sube la versión una
+vez; un efecto rechazado no escribe; el token de otro tenant no ve el estado; y
+un servidor HTTP real sirve tras reiniciar lo que escribió el proceso anterior
+(141/141 pruebas, `tsc` exit 0).
+
+Lo que sigue abierto y no hay que confundir: `tenant_state` **no** es la ruta
+normalizada (reescribe el agregado y serializa al tenant), el claim sigue sin
+`for update skip locked` (`MKT-C22-G01`), el worker de demostración sigue en
+memoria y si el proceso muere entre el envío y la escritura el intent queda
+`queued` con el mensaje ya salido (sin exactly-once). Por eso `MKT-C06-G01/G02`
+conservan `PARTIAL`.

@@ -68,6 +68,7 @@ import {
 import type { JwtVerifier } from './auth';
 import type { AdminAction, AdminPort } from './admin';
 import type { PrincipalResolver } from './principals';
+import type { TenantStatePort } from './state';
 
 export interface AppDeps {
   ctx: Ctx;
@@ -88,6 +89,11 @@ export interface AppDeps {
    * real: ahí se inyecta `createPgPrincipalResolver`).
    */
   principals?: PrincipalResolver;
+  /**
+   * Estado de producto durable por tenant. Sin ella el store vive sólo en el
+   * proceso y un reinicio pierde campañas, intents y receipts.
+   */
+  state?: TenantStatePort;
 }
 
 interface Vars {
@@ -166,9 +172,11 @@ export function createApp(deps: AppDeps) {
       const key = idempotency(c);
       const raw = await c.req.json().catch(() => ({}));
       const body = schema.parse(raw);
-      const result = await service.run(principal, capability, { idempotencyKey: key, correlationId: correlation(c), payload: body }, () =>
-        handler(principal, body, c),
-      );
+      const execute = () =>
+        service.run(principal, capability, { idempotencyKey: key, correlationId: correlation(c), payload: body }, () =>
+          handler(principal, body, c),
+        );
+      const result = deps.state ? await deps.state.mutate(principal.tenantId, execute) : await execute();
       return c.json(result, 200);
     };
   }
@@ -177,7 +185,8 @@ export function createApp(deps: AppDeps) {
   function read<TResult>(capability: Capability, handler: (principal: Principal, c: Context) => TResult) {
     return async (c: Context) => {
       const principal = await resolveActor(c, capability);
-      return c.json(handler(principal, c), 200);
+      const compute = async () => handler(principal, c);
+      return c.json(deps.state ? await deps.state.read(principal.tenantId, compute) : await compute(), 200);
     };
   }
 

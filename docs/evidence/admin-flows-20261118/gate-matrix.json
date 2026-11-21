@@ -2,17 +2,17 @@
   {
     "id": "MKT-C06-G01",
     "status": "PARTIAL",
-    "reason": "FK compuestas y permisos verificados en SQL nativo; la vía administrativa y la resolución de tenant/membership ya van por Postgres (2026-11-18), pero el camino de datos de producto (campañas, intents, receipts, audiencias) sigue en memoria"
+    "reason": "FK compuestas y permisos verificados en SQL nativo; la vía administrativa y la resolución de tenant/membership van por Postgres y, desde 2026-11-18 (2), el agregado de producto del tenant se guarda en el documento JSONB tenant_state (migración 0007, RLS forzada, tests/db/tenant-state.test.ts y reinicio real en docs/evidence/tenant-state-20261118). Sigue PARTIAL porque el esquema normalizado por rebanada (campaigns, outbound_intents, receipts con for update skip locked) no existe: el documento se relee entero por petición y no permite que dos workers tomen rebanadas distintas"
   },
   {
     "id": "MKT-C06-G02",
     "status": "PARTIAL",
-    "reason": "Rollback SQL y DDL transaccional probados; el adaptador de producto sigue sin existir"
+    "reason": "Rollback SQL y DDL transaccional probados; desde 2026-11-18 (2) existe un adaptador de producto transaccional sobre tenant_state: un cerrojo por tenant durante la petición, efecto rechazado no escribe y fallo de escritura responde 503 state_write_failed con reconciliationRequired. Sigue PARTIAL porque cubre el documento completo, no las entidades normalizadas que el worker necesitará"
   },
   {
     "id": "MKT-C06-G03",
     "status": "PASS",
-    "reason": "POST /v1/marketing/admin/actions escribe por marketing_admin con admin_actions y se ejerció contra Postgres real (tests/db/admin-api.test.ts, 6 pruebas; docs/evidence/admin-api-20261118). Desde 2026-11-18 el tenant y el actor se resuelven del JWT verificado + membership leída de Postgres, y el endpoint se ejerció por red con reinicio (docs/evidence/admin-api-http-20261118). El camino de datos de producto sigue sin persistencia (G01/G02)"
+    "reason": "POST /v1/marketing/admin/actions escribe por marketing_admin con admin_actions y se ejerció contra Postgres real (tests/db/admin-api.test.ts, 6 pruebas; docs/evidence/admin-api-20261118). Desde 2026-11-18 el tenant y el actor se resuelven del JWT verificado + membership leída de Postgres, y el endpoint se ejerció por red con reinicio (docs/evidence/admin-api-http-20261118). El camino de datos de producto persiste en tenant_state desde 2026-11-18 (2), pero sólo como documento por tenant (G01/G02)"
   },
   {
     "id": "MKT-C22-G01",
