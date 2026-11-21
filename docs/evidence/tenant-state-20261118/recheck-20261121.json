@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-21",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "1b93d17c256754879c6ad75864e0930dfa3341f1",
+  "reason": "El sandbox se restauró sin node_modules ni base de datos. Se reinstalaron dependencias desde el lockfile y se levantó Postgres en espacio de usuario para re-verificar el mismo commit que la CI ya había aprobado.",
+  "environment": {
+    "node": "según .nvmrc del repositorio",
+    "package_manager": "npm ci desde package-lock.json (sin cambios en el lockfile)",
+    "postgres": {
+      "version": "18.7",
+      "distribution": "binarios del paquete npm embedded-postgres en /tmp (sin Docker, sin root, sin tocar el sistema)",
+      "port": 55433,
+      "database": "agntia_final",
+      "login_role": "postgres (superusuario local) con SET LOCAL ROLE authenticated",
+      "note": "El banco original y la CI usan Postgres 16; esta re-ejecución es una versión mayor distinta, no la misma."
+    }
+  },
+  "new_test": {
+    "file": "tests/db/tenant-state.test.ts",
+    "name": "dos escritores concurrentes del mismo tenant no se pisan",
+    "why": "La afirmación del diseño es «un solo escritor por tenant: sin actualizaciones perdidas». Las pruebas anteriores medían escrituras secuenciales, que no ejercitan el cerrojo.",
+    "how": "Dos apps con pool y store propios lanzan en paralelo dos POST /v1/marketing/briefs sobre el mismo tenant; se exige versión +2 exacta y que ambos briefs aparezcan en el listado.",
+    "result": "PASS",
+    "result_meaning": "La segunda transacción espera en select … for update y lee el documento ya escrito por la primera; ninguna escritura se pierde. No demuestra paralelismo entre tenants distintos ni sustituye a la cola for update skip locked."
+  },
+  "runs": [
+    { "suite": "tests/db/tenant-state.test.ts", "tests": 5, "pass": 5, "fail": 0 },
+    { "suite": "npx vitest run (completa, con DATABASE_URL)", "tests": 142, "pass": 142, "fail": 0 }
+  ],
+  "typecheck": {
+    "command": "npx tsc -p tsconfig.json --noEmit",
+    "exit_code": 0
+  },
+  "ci": {
+    "run_id": 44920989505,
+    "head_sha": "1b93d17c256754879c6ad75864e0930dfa3341f1",
+    "jobs": { "verify": "success", "database": "success" },
+    "observed_at": "2026-11-21T15:48Z",
+    "account": "github_wint-glynn",
+    "log": "ci.md"
+  },
+  "limitations": [
+    "Postgres 18.7 en la re-ejecución frente a 16 en el banco original y en la CI.",
+    "El rol de login es superusuario; la policy se verificó por comportamiento con SET LOCAL ROLE authenticated.",
+    "tenant_state sigue siendo un documento por tenant: el cerrojo serializa al tenant entero.",
+    "El claim no usa for update skip locked; el worker de producto sigue en memoria.",
+    "Sin proveedor real ni exactly-once; nada desplegado."
+  ]
+}

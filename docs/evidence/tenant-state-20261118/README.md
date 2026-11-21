@@ -6,6 +6,11 @@ Fecha: 2026-11-18. Base: `main` en `356167f`. Migración nueva:
 `DATABASE_URL` y `tsc --noEmit` exit 0, todo contra Postgres 16.15; más un humo
 por red con **reinicio real de proceso** (`run.log`).
 
+Re-ejecución 2026-11-21 (ver más abajo y `recheck-20261121.json`): **5/5** en ese
+archivo —se añadió el caso de dos escritores concurrentes— y **142/142** en la
+suite completa, sobre Postgres 18.7 y sobre el mismo código que la CI aprobó en
+`1b93d17`.
+
 ## El hallazgo que cambió el plan
 
 El §9 del handoff proponía empezar por «campaña → commit → lease → delivery →
@@ -90,5 +95,33 @@ y un script de `/tmp` que no forma parte del repositorio.
 
 - `run.log`: siembra, dos procesos con reinicio verificado, corrección del
   parseo, tercera lectura y estado del documento en Postgres.
-- `full-suite.log`: la suite completa, 141/141.
+- `full-suite.log`: la suite completa, 141/141 (2026-11-18).
 - `provenance.json`: SHA base, hashes de las fuentes y límites declarados.
+- `recheck-pg18.log`: la suite completa el 2026-11-21, 142/142, contra Postgres
+  18.7 (`recheck-20261121.json`).
+- `ci.md`: los dos jobs del workflow `ci` sobre `1b93d17`, en success.
+
+## Re-ejecución 2026-11-21: concurrencia y otra versión de Postgres
+
+El sandbox se restauró sin dependencias ni base de datos, así que se levantó un
+Postgres 18.7 en espacio de usuario (binarios del paquete `embedded-postgres` en
+`/tmp`, sin Docker y sin root) y se repitió todo contra el mismo commit que la CI
+ya había aprobado: **142/142** y `tsc` exit 0.
+
+Además se añadió la prueba que faltaba para la afirmación central del diseño. La
+prueba anterior medía escrituras **secuenciales**; el documento dice «un solo
+escritor por tenant: sin actualizaciones perdidas», y eso sólo se ve con dos
+escritores a la vez. La prueba nueva levanta **dos apps, cada una con su pool y su
+store** (lo más parecido a dos procesos), lanza dos `POST /v1/marketing/briefs`
+en paralelo sobre el mismo tenant y comprueba que la versión sube exactamente dos
+veces y que el listado contiene los dos briefs.
+
+Resultado: PASS. La segunda transacción espera en `for update` y, al entrar, lee
+el documento ya actualizado por la primera; ninguna de las dos desaparece. Esto
+no cambia el límite conocido —el cerrojo serializa al tenant entero, no es la
+cola `for update skip locked`— pero convierte «no hay actualizaciones perdidas» de
+una afirmación del comentario en algo ejercitado.
+
+Lo que **no** prueba esta re-ejecución: Postgres 18.7 no es la 16.15 del banco
+original (la CI usa `postgres:16` y también pasó); el rol de login sigue siendo
+superusuario; y sigue sin haber worker de producto ni proveedor real.

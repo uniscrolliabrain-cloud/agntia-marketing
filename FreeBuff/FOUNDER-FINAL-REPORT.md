@@ -29,7 +29,7 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: bucle de entrega sandbox.
 - `db/migrations`: esquema con RLS forzada, hardening y flujo administrativo auditado (`0001`–`0006`), **ejecutados y verificados** en Postgres 16.15.
-- `tests/`: 141 pruebas en 11 archivos (incluye integración contra Postgres real).
+- `tests/`: 142 pruebas en 11 archivos (incluye integración contra Postgres real).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables

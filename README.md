@@ -9,7 +9,7 @@ Diseño de empresa SaaS especialista en marketing, investigación de mercado, ca
 ```bash
 npm install
 npm run typecheck     # tsc estricto, sin emitir
-npm test              # 141 pruebas (107 de campañas + 18 de Postgres real + 12 del API contra Postgres + 4 de estado durable)
+npm test              # 142 pruebas (107 de campañas + 18 de Postgres real + 12 del API contra Postgres + 5 de estado durable)
 npm run api:dev       # API Hono en :8787 (portal en /portal/)
 npm run worker:dev    # ciclo outbox → sandbox → receipt
 ```

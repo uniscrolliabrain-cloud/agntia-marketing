@@ -2,7 +2,7 @@
   {
     "id": "MKT-C06-G01",
     "status": "PARTIAL",
-    "reason": "FK compuestas y permisos verificados en SQL nativo; la vía administrativa y la resolución de tenant/membership van por Postgres y, desde 2026-11-18 (2), el agregado de producto del tenant se guarda en el documento JSONB tenant_state (migración 0007, RLS forzada, tests/db/tenant-state.test.ts y reinicio real en docs/evidence/tenant-state-20261118). Sigue PARTIAL porque el esquema normalizado por rebanada (campaigns, outbound_intents, receipts con for update skip locked) no existe: el documento se relee entero por petición y no permite que dos workers tomen rebanadas distintas"
+    "reason": "FK compuestas y permisos verificados en SQL nativo; la vía administrativa y la resolución de tenant/membership van por Postgres y, desde 2026-11-18 (2), el agregado de producto del tenant se guarda en el documento JSONB tenant_state (migración 0007, RLS forzada, tests/db/tenant-state.test.ts, incluido un caso de dos escritores concurrentes sobre el mismo tenant, y reinicio real en docs/evidence/tenant-state-20261118). Sigue PARTIAL porque el esquema normalizado por rebanada (campaigns, outbound_intents, receipts con for update skip locked) no existe: el documento se relee entero por petición y no permite que dos workers tomen rebanadas distintas"
   },
   {
     "id": "MKT-C06-G02",

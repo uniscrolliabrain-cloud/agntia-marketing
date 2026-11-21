@@ -237,7 +237,7 @@ Verificado: una app con store vacío lee la campaña, la compromete, la entrega 
 la sigue viendo con un pool y un store nuevos; cada mutación sube la versión una
 vez; un efecto rechazado no escribe; el token de otro tenant no ve el estado; y
 un servidor HTTP real sirve tras reiniciar lo que escribió el proceso anterior
-(141/141 pruebas, `tsc` exit 0).
+(142/142 pruebas, `tsc` exit 0).
 
 Lo que sigue abierto y no hay que confundir: `tenant_state` **no** es la ruta
 normalizada (reescribe el agregado y serializa al tenant), el claim sigue sin
@@ -245,3 +245,19 @@ normalizada (reescribe el agregado y serializa al tenant), el claim sigue sin
 memoria y si el proceso muere entre el envío y la escritura el intent queda
 `queued` con el mensaje ya salido (sin exactly-once). Por eso `MKT-C06-G01/G02`
 conservan `PARTIAL`.
+
+### Actualización 2026-11-21: el cerrojo, ejercitado con dos escritores
+
+La etapa 1 afirmaba «un solo escritor por tenant, sin actualizaciones perdidas»,
+pero las pruebas medían escrituras secuenciales. Se añadió una prueba con **dos
+apps, dos pools y dos stores** —lo más parecido a dos procesos— lanzando dos
+briefs en paralelo sobre el mismo tenant: la versión sube exactamente dos veces y
+ambos briefs quedan en el documento. PASS, junto con la suite completa (142/142)
+re-ejecutada sobre Postgres 18.7 tras restaurar el sandbox, y con los dos jobs de
+CI en success sobre `1b93d17` (`docs/evidence/tenant-state-20261118/`).
+
+Sigue abierto lo mismo que antes y no se maquilla: el cerrojo es por tenant, no
+por rebanada; el worker de producto no existe sobre Postgres; no hay proveedor
+real ni exactly-once. La opción A (dominio asíncrono) sigue siendo el camino para
+`MKT-C22-G01`, y sigue siendo un cambio de contrato que conviene hacer por
+rebanada vertical y con su propia prueba de reinicio.

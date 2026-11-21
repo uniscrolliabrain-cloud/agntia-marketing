@@ -177,6 +177,52 @@ suite('MKT-C06 · estado del tenant durable sobre Postgres real', () => {
     expect(foreign.json.error.detail).toBe('campaign_not_found');
   }, 30_000);
 
+  it('dos escritores concurrentes del mismo tenant no se pisan', async () => {
+    // Dos apps = dos procesos: cada una con su pool y su store. El cerrojo
+    // `for update` de `tenant_state` debe serializarlas, no fusionarlas a ciegas.
+    const appA = buildApp(pool, fixture.registry);
+    const appB = buildApp(pool2, fixture.registry);
+
+    const version = async () =>
+      Number(
+        (
+          await withSuperuser(DATABASE_URL!, (c) =>
+            c.query<{ version: string }>('select version from tenant_state where tenant_id = $1', [TENANT_A]),
+          )
+        ).rows[0]!.version,
+      );
+
+    const brief = (title: string) => ({
+      title,
+      objective: 'Escribir en paralelo sobre el mismo tenant',
+      hypothesis: 'El cerrojo conserva las dos escrituras',
+      offer: 'Diagnóstico',
+      declaredAudience: 'Contactos con consentimiento',
+      channels: ['email'],
+      successDefinition: 'Dos briefs',
+      window: { from: '2026-11-15T00:00:00Z', to: '2026-11-30T00:00:00Z' },
+      budget: { amount: '100.00', currency: 'EUR' },
+      constraints: [],
+      sources: [{ label: 'interno', ref: 'docs/09-medicion-y-evaluacion.md' }],
+    });
+
+    const before = await version();
+    const [first, second] = await Promise.all([
+      call(appA, 'POST', '/v1/marketing/briefs', token, brief('Brief concurrente A')),
+      call(appB, 'POST', '/v1/marketing/briefs', token, brief('Brief concurrente B')),
+    ]);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    // Dos escrituras = dos versiones; ninguna sobrescribe el documento de la otra.
+    expect(await version()).toBe(before + 2);
+
+    const listed = await call(appA, 'GET', '/v1/marketing/briefs', token);
+    const ids = (listed.json as unknown as Array<{ id: string }>).map((b) => b.id);
+    expect(ids).toContain(first.json.payload.id);
+    expect(ids).toContain(second.json.payload.id);
+  }, 60_000);
+
   it('un efecto rechazado no toca el documento', async () => {
     const app = buildApp(pool, fixture.registry);
     const before = await withSuperuser(DATABASE_URL!, (c) =>
