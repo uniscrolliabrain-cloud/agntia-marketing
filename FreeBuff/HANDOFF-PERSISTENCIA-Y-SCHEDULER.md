@@ -294,3 +294,27 @@ aprobación caducada → intents `cancelled` con `approval_expired`.
 Lo que sigue abierto: la exclusión es por tenant, no por intent (`skip locked`
 pendiente, `MKT-C22-G01` sigue `PARTIAL`), el worker sirve al tenant de su token y
 no descubre tenants, no hay proveedor real (`MKT-C41-G01`), y no hay exactly-once.
+
+### Actualización 2026-11-21 (4): el worker ya se puede dejar corriendo
+
+El worker de la actualización anterior era un proceso **por lotes**: terminaba tras
+tres vueltas sin trabajo, así que un despliegue necesitaba un supervisor que lo
+relanzase y no había forma de pedirle una parada limpia. Ahora tiene modo servicio
+(`WORKER_DAEMON=1`): no para por inactividad, espera 250 ms entre vueltas con
+trabajo y 5 s en vacío, late en cada vuelta vacía, absorbe fallos transitorios con
+backoff y sale con `SIGTERM`/`SIGINT` (código 0) o degradado (código 3) cuando el
+API deja de responder. Un valor de entorno inválido detiene el proceso al arrancar
+en vez de degradarlo en silencio.
+
+La decisión que importa: la señal **no** se propaga a la petición en curso.
+Abortar una entrega a medias puede dejar el mensaje confirmado en el proveedor y el
+intent todavía `queued` en el documento; como la ventana sin exactly-once sigue
+abierta, el reintento duplicaría el envío. Se prefiere terminar la vuelta y salir,
+aunque la parada tarde lo que tarde esa petición (15 s como máximo por defecto).
+
+Verificado: 10 pruebas nuevas (`tests/worker/worker-daemon.test.ts`), 165/165 con
+`DATABASE_URL` sobre Postgres 18.7, `tsc` exit 0, y tres tandas de humo de proceso
+(exit 0 en 17 ms tras `SIGTERM`, exit 3 con el API caído, exit 2 sin configuración)
+en `docs/evidence/worker-daemon-20261121/`. No cambia ningún límite de fondo: la
+exclusión sigue siendo por tenant (`for update skip locked` pendiente), el worker
+sirve a un tenant, no hay proveedor real y no hay exactly-once.

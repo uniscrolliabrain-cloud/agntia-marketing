@@ -1,0 +1,35 @@
+{
+  "evidence": "worker-daemon-20261121",
+  "date": "2026-11-21",
+  "base_commit": "7d4ea79",
+  "branch": "main",
+  "runtime": {
+    "node": "26.13.0",
+    "postgres": "18.7 (embedded-postgres, puerto 55434, base agntia_final)",
+    "supabase": "no usado (JWT HS256 local; el camino JWKS sigue BLOCKED por falta de proyecto real)"
+  },
+  "reviewed_source": [
+    "apps/worker/src/client.ts (runWorkerDaemon, defaultSleep, accumulate)",
+    "apps/worker/src/main.ts (modo daemon, señales, validación de entorno, códigos de salida)",
+    "tests/worker/worker-daemon.test.ts (10 pruebas nuevas)"
+  ],
+  "commands": [
+    "npx tsc -p tsconfig.json --noEmit",
+    "DATABASE_URL=postgres://postgres@127.0.0.1:55434/agntia_final npx vitest run",
+    "env -u DATABASE_URL npx vitest run",
+    "node --import tsx apps/worker/src/main.ts  (con WORKER_DAEMON=1 y API de apoyo)"
+  ],
+  "results": {
+    "typecheck": "exit 0",
+    "tests_with_db": "165/165 en 14 archivos",
+    "tests_without_db": "126 passed, 39 skipped",
+    "smoke_accept": "exit 0 tras SIGTERM (17 ms), 10 vueltas, 1 confirmed, 9 latidos",
+    "smoke_degraded": "exit 3 tras 3 fallos transitorios consecutivos",
+    "smoke_config_invalid": "exit 2"
+  },
+  "notes": [
+    "El humo usa una API de apoyo no versionada: verifica el ciclo de vida del proceso, no la entrega durable.",
+    "La entrega contra API y Postgres reales se verificó en docs/evidence/worker-pg-20261121/.",
+    "MKT-C22-G01 sigue PARTIAL: no hay for update skip locked en la ruta de producto."
+  ]
+}

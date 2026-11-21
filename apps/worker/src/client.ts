@@ -32,6 +32,17 @@ export interface DrainResult {
   requeued: number;
 }
 
+/** Contadores que comparten el bucle acotado y el demonio. */
+type Counters = Pick<LoopReport, 'drained' | 'confirmed' | 'failed' | 'unknown' | 'requeued'>;
+
+function accumulate(report: Counters, result: DrainResult): void {
+  report.drained += result.leased;
+  report.confirmed += result.confirmed;
+  report.failed += result.failed;
+  report.unknown += result.unknown;
+  report.requeued += result.requeued;
+}
+
 export interface LoopOptions {
   intervalMs?: number;
   /** Vueltas seguidas sin trabajo que paran el bucle. */
@@ -211,11 +222,7 @@ export async function runWorkerLoop(config: WorkerConfig, options: LoopOptions =
     }
 
     report.rounds += 1;
-    report.drained += result.leased;
-    report.confirmed += result.confirmed;
-    report.failed += result.failed;
-    report.unknown += result.unknown;
-    report.requeued += result.requeued;
+    accumulate(report, result);
     options.onRound?.({ round: report.rounds, result });
 
     if (result.leased === 0) {
@@ -229,5 +236,125 @@ export async function runWorkerLoop(config: WorkerConfig, options: LoopOptions =
     }
     await sleep(intervalMs);
   }
+  return report;
+}
+
+/**
+ * Espera interrumpible: al llegar la señal de parada se resuelve ya, sin
+ * esperar el temporizador. Así un worker ocioso no tarda `idleIntervalMs` en
+ * apagarse.
+ */
+function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (ms <= 0) return resolve();
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    if (signal?.aborted) return done();
+    signal?.addEventListener('abort', done, { once: true });
+  });
+}
+
+export interface DaemonOptions {
+  /** Espera entre vueltas con trabajo. */
+  intervalMs?: number;
+  /** Espera entre vueltas vacías: un worker ocioso no golpea el API. */
+  idleIntervalMs?: number;
+  backoffMs?: number;
+  maxBackoffMs?: number;
+  /**
+   * Fallos transitorios consecutivos que terminan el proceso (`0` los absorbe
+   * para siempre). Con el valor por defecto un worker que no habla con el API
+   * termina en vez de quedarse vivo fingiendo salud: el supervisor se entera.
+   */
+  maxConsecutiveErrors?: number;
+  /** Parada ordenada: deja de reclamar y espera la vuelta en curso. */
+  signal?: AbortSignal;
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  onRound?: (round: { round: number; result: DrainResult; durationMs: number }) => void;
+  /** Se llama en cada vuelta vacía: sirve de latido del proceso. */
+  onIdle?: (info: { idleMs: number }) => void;
+  fetch?: FetchLike;
+}
+
+export interface DaemonReport extends Omit<LoopReport, 'stopReason'> {
+  /** `signal`: parada pedida desde fuera. `degraded`: el API no responde. */
+  stopReason: 'signal' | 'degraded';
+  /** Último fallo transitorio visto, para el log de parada. */
+  lastError: string | null;
+  uptimeMs: number;
+}
+
+/**
+ * Worker como servicio: no para por inactividad, espera menos cuando hay trabajo
+ * y más cuando no, y termina sólo por señal o por degradación sostenida.
+ *
+ * La señal de parada **no** se pasa a la petición en curso. Abortar una entrega
+ * a medias puede dejar el mensaje confirmado en el proveedor y el intent todavía
+ * `queued` en el documento; con la ventana actual, el reintento duplicaría el
+ * envío. Preferimos terminar la vuelta y salir.
+ */
+export async function runWorkerDaemon(config: WorkerConfig, options: DaemonOptions = {}): Promise<DaemonReport> {
+  const intervalMs = options.intervalMs ?? 250;
+  const idleIntervalMs = options.idleIntervalMs ?? 5_000;
+  const backoffMs = options.backoffMs ?? 200;
+  const maxBackoffMs = options.maxBackoffMs ?? 5_000;
+  const maxConsecutiveErrors = options.maxConsecutiveErrors ?? 30;
+  const sleep = options.sleep ?? defaultSleep;
+  const startedAt = Date.now();
+
+  const report: DaemonReport = {
+    workerId: config.workerId,
+    rounds: 0,
+    drained: 0,
+    confirmed: 0,
+    failed: 0,
+    unknown: 0,
+    requeued: 0,
+    transientErrors: 0,
+    idleRounds: 0,
+    stopReason: 'signal',
+    lastError: null,
+    uptimeMs: 0,
+  };
+
+  let consecutiveErrors = 0;
+  while (!options.signal?.aborted) {
+    const roundStart = Date.now();
+    let result: DrainResult;
+    try {
+      result = await drainOnce(config, options.fetch ? { fetch: options.fetch } : {});
+      consecutiveErrors = 0;
+    } catch (error) {
+      if (!(error instanceof WorkerTransientError)) throw error;
+      report.transientErrors += 1;
+      report.lastError = error.detail;
+      consecutiveErrors += 1;
+      if (maxConsecutiveErrors > 0 && consecutiveErrors >= maxConsecutiveErrors) {
+        report.stopReason = 'degraded';
+        break;
+      }
+      await sleep(Math.min(backoffMs * 2 ** Math.min(consecutiveErrors - 1, 5), maxBackoffMs), options.signal);
+      continue;
+    }
+
+    const durationMs = Date.now() - roundStart;
+    report.rounds += 1;
+    accumulate(report, result);
+    options.onRound?.({ round: report.rounds, result, durationMs });
+
+    const idle = result.leased === 0;
+    if (idle) {
+      report.idleRounds += 1;
+      options.onIdle?.({ idleMs: idleIntervalMs });
+    }
+    if (options.signal?.aborted) break;
+    await sleep(idle ? idleIntervalMs : intervalMs, options.signal);
+  }
+
+  report.uptimeMs = Date.now() - startedAt;
   return report;
 }

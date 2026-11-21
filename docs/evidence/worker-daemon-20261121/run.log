@@ -1,0 +1,32 @@
+=== tanda 1: acepta, se le manda SIGTERM
+stub escuchando en :8794 mode=accept
+exit_accept=0 stop_ms=17
+{"event":"worker_started","mode":"daemon","workerId":"worker_daemon","apiBaseUrl":"http://127.0.0.1:8794","limit":25,"provider":"email_sandbox","intervalMs":20,"idleIntervalMs":200,"maxConsecutiveErrors":30}
+{"event":"worker_round","workerId":"worker_daemon","round":1,"durationMs":54,"leased":1,"confirmed":1,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_round","workerId":"worker_daemon","round":2,"durationMs":3,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":3,"durationMs":3,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":4,"durationMs":4,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":5,"durationMs":3,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":6,"durationMs":4,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":7,"durationMs":7,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":8,"durationMs":3,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":9,"durationMs":5,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_round","workerId":"worker_daemon","round":10,"durationMs":3,"leased":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0}
+{"event":"worker_idle","workerId":"worker_daemon","idleMs":200}
+{"event":"worker_stopping","workerId":"worker_daemon","signal":"SIGTERM"}
+{"event":"worker_stopped","mode":"daemon","workerId":"worker_daemon","rounds":10,"drained":1,"confirmed":1,"failed":0,"unknown":0,"requeued":0,"transientErrors":0,"idleRounds":9,"stopReason":"signal","lastError":null,"uptimeMs":1777}
+=== tanda 2: API caído, umbral 3 fallos
+exit_degraded=3
+{"event":"worker_started","mode":"daemon","workerId":"worker_down","apiBaseUrl":"http://127.0.0.1:8795","limit":25,"provider":"email_sandbox","intervalMs":20,"idleIntervalMs":5000,"maxConsecutiveErrors":3}
+{"event":"worker_stopped","mode":"daemon","workerId":"worker_down","rounds":0,"drained":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0,"transientErrors":3,"idleRounds":0,"stopReason":"degraded","lastError":"stub_down","uptimeMs":665}
+=== tanda 3: modo demonio sin API configurada
+{"event":"worker_config_invalid","detail":"WORKER_API_URL_and_WORKER_JWT_required_in_daemon_mode"}
+exit_config=2

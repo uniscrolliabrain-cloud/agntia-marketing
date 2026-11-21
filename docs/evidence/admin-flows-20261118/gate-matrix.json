@@ -17,7 +17,7 @@
   {
     "id": "MKT-C22-G01",
     "status": "PARTIAL",
-    "reason": "Desde 2026-11-21 hay worker de producto como proceso propio: reclama y entrega por la ruta interna, que corre el dominio dentro del cerrojo de tenant_state, y tres procesos contra el mismo tenant no duplican entregas (tests/db/worker-drain.test.ts y docs/evidence/worker-pg-20261121). Sigue PARTIAL porque la exclusión es por tenant y no por intent: no se usa `for update skip locked` en la ruta de producto, y el único adaptador es email_sandbox, así que la entrega real sigue sin verificarse"
+    "reason": "Desde 2026-11-21 hay worker de producto como proceso propio: reclama y entrega por la ruta interna, que corre el dominio dentro del cerrojo de tenant_state, y tres procesos contra el mismo tenant no duplican entregas (tests/db/worker-drain.test.ts y docs/evidence/worker-pg-20261121). Sigue PARTIAL porque la exclusión es por tenant y no por intent: no se usa `for update skip locked` en la ruta de producto, y el único adaptador es email_sandbox, así que la entrega real sigue sin verificarse. Desde 2026-11-21 (2) el mismo proceso corre además como servicio (WORKER_DAEMON: no para por inactividad, latido por vuelta vacía, parada ordenada por SIGTERM y salida 3 si el API no responde) en docs/evidence/worker-daemon-20261121; eso lo hace desplegable, no paralelo dentro del tenant, así que el motivo del PARTIAL no cambia"
   },
   {
     "id": "MKT-C22-G02",
