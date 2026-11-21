@@ -76,6 +76,15 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 3. Rate limit: el contador compartido existe y está probado; falta despliegue multi-instancia.
 4. Aprobación de journey por revisión completa, no por paso.
 5. Sin firma en los ACK de handoff entre servicios.
+   **Actualización 2026-11-21:** este riesgo estaba mal descrito. El ACK ya va
+   firmado con HMAC-SHA256 sobre handoff + tenant + decisión + actor + fecha, y
+   `POST /v1/marketing/handoffs/:id/verify-ack` rechaza firma manipulada, decisión
+   distinta, ACK de otro handoff y secreto distinto; sin `HANDOFF_ACK_SECRET`
+   responde `503 ack_signing_unconfigured` en vez de aceptar
+   (`packages/core/src/service.ts`, `tests/campaigns/handoff-ack.test.ts`, 4
+   pruebas PASS). Lo que sigue pendiente es **operativo**: rotación del secreto,
+   transporte autenticado entre servicios y que el servicio hermano verifique la
+   firma de verdad (hoy la verificación la ejerce este API).
 6. CI **ejecutado** en GitHub Actions sobre `9cf035b`: `verify` y `database` en
    success, este último con `postgres:16` como servicio. Ver
    `docs/evidence/merge-20261118/`.
