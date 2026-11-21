@@ -29,15 +29,15 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: bucle de entrega sandbox.
 - `db/migrations`: esquema con RLS forzada, hardening y flujo administrativo auditado (`0001`–`0006`), **ejecutados y verificados** en Postgres 16.15.
-- `tests/`: 142 pruebas en 11 archivos (incluye integración contra Postgres real).
+- `tests/`: 155 pruebas en 13 archivos (incluye integración contra Postgres real y el worker de outbox).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables
 
 ```
 npx tsc -p tsconfig.json --noEmit   # exit 0
-npx vitest run                      # 107 passed, 18 skipped (sin DB)
-DATABASE_URL=… npx vitest run       # 125 passed (125), Postgres 16.15 real
+npx vitest run                      # 116 passed, 39 skipped (sin DB)
+DATABASE_URL=… npx vitest run       # 155 passed (155), Postgres real
 tests/postgres/native_postgres.py   # 39/39 PASS, clúster nuevo (ver docs/evidence/admin-flows-20261118)
 ```
 
@@ -54,7 +54,10 @@ enumerados uno a uno en `docs/execution-evidence/FINAL-FREEBUFF-REPORT.md`.
 
 - **Real y verificado:** verificación JWT (HS256 de test) y entrega de email al sandbox local.
 - **Simulado:** Mautic, Listmonk, Matomo, Plausible, PostHog, GA4, GSC, GrowthBook, Ads, Anam.
-- **Ejecutado y verificado:** Postgres 16.15 real (migraciones, RLS, FK, `SKIP LOCKED`, rate limit compartido); el API aún no lo consume.
+- **Ejecutado y verificado (2026-11-21):** worker de outbox como proceso propio (tres
+  procesos contra el mismo tenant, sin doble entrega) con adaptador sandbox; sigue
+  sin proveedor real.
+- **Ejecutado y verificado:** Postgres real (migraciones, RLS, FK, `SKIP LOCKED`, rate limit compartido). **Actualización 2026-11-21:** el API ya lo consume para autorizar (tenant y membership), para guardar el estado de producto y para la entrega del worker, que corre como proceso separado con exclusión por tenant y no duplica envíos (`docs/evidence/worker-pg-20261121/`).
 
 ## 8. Riesgos y deuda técnica
 
@@ -97,7 +100,7 @@ valores y sin crear el proyecto: eso requiere tu autorización.
 
 ## 10. Propuesta de integración con el padre
 
-`FreeBuff/INTEGRATION-AGENTE-PROPOSAL.md`: superficie HTTP, 31 capacidades,
+`FreeBuff/INTEGRATION-AGENTE-PROPOSAL.md`: superficie HTTP, 32 capacidades,
 twins, eventos, mandatos, dependencias, pruebas conjuntas, rollback y seis
 cambios propuestos en `agente`. Ninguno aplicado.
 

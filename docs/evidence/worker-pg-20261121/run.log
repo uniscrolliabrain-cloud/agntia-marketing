@@ -1,0 +1,48 @@
+# Humo del worker de outbox con procesos reales (2026-11-21)
+# Base: main edeb621. Postgres 18.7 en 127.0.0.1:55433 (binarios de embedded-postgres
+# en /tmp, sin Docker ni root). Servidor: npx tsx apps/api/src/server.ts, PORT=8793.
+# El token del worker NO se incluye en este registro.
+
+## Tanda 1: token con secreto equivocado (sembrado sin DEV_JWT_SECRET)
+
+healthz: {"ok":true,"service":"agntia-marketing","policy":"policy-2026-11-14.1"}
+[worker_1] {"mode":"durable","workerId":"worker_1","status":401,"detail":"token_invalid"}
+[worker_2] {"mode":"durable","workerId":"worker_2","status":401,"detail":"token_invalid"}
+[worker_3] {"mode":"durable","workerId":"worker_3","status":401,"detail":"token_invalid"}
+[documento] {"version":"0","intents":2,"states":["queued"],"receipts":0,"uniqueReceiptIntents":0}
+# Lectura: el borde rechaza el token y no se entrega nada. Ningún intent cambia de estado.
+
+## Tanda 2: aprobación caducada frente al reloj del servidor
+
+[worker_1] {"workerId":"worker_1","rounds":2,"drained":0,"confirmed":0,"stopReason":"idle"}
+[worker_2] {"workerId":"worker_2","rounds":2,"drained":0,"confirmed":0,"stopReason":"idle"}
+[worker_3] {"workerId":"worker_3","rounds":2,"drained":0,"confirmed":0,"stopReason":"idle"}
+[documento] {"version":"6","intents":2,"states":["cancelled"],"receipts":0}
+# Lectura: el seed usaba el reloj fijo de la fixture (2026-11-14) y el servidor otro
+# reloj; la revalidación del lease canceló los intents con approval_expired. El
+# dominio se negó a enviar: es el comportamiento correcto.
+#
+# De aquí salió el defecto: apps/api/src/server.ts arrancaba con createStore() sin
+# reloj, es decir con el reloj CONGELADO de las pruebas (2026-11-14T12:00Z). Un
+# intent programado para 2026-11-21 nunca vencía. Corregido: el proceso usa el reloj
+# real y createStore documenta que su valor por defecto es fixture.
+
+## Tanda 3: tres procesos worker, campaña vigente, misma base
+
+[seed] queued=2 campaign=cmp_6fd36e990fc9461a9717
+[worker_1] {"mode":"durable","workerId":"worker_1","rounds":3,"drained":2,"confirmed":2,"failed":0,"unknown":0,"requeued":0,"transientErrors":0,"idleRounds":2,"stopReason":"idle"}
+[worker_2] {"mode":"durable","workerId":"worker_2","rounds":2,"drained":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0,"transientErrors":0,"idleRounds":2,"stopReason":"idle"}
+[worker_3] {"mode":"durable","workerId":"worker_3","rounds":2,"drained":0,"confirmed":0,"failed":0,"unknown":0,"requeued":0,"transientErrors":0,"idleRounds":2,"stopReason":"idle"}
+[documento] {"version":"7","intents":2,"states":["confirmed"],"receipts":2,"uniqueReceiptIntents":2,"events":9}
+# Lectura: los tres procesos compiten por el mismo tenant; el cerrojo serializa, uno
+# drena los dos intents y los otros dos no ven trabajo. Dos receipts para dos intents
+# distintos: ni doble envío ni entrega perdida. El servidor se paró por PID del puerto.
+
+## Comandos
+
+DATABASE_URL=postgres://postgres@127.0.0.1:55433/agntia_final \
+DEV_JWT_SECRET=<secreto local de desarrollo> PORT=8793 npx tsx apps/api/src/server.ts
+
+WORKER_API_URL=http://127.0.0.1:8793 WORKER_JWT=<token de servicio> \
+WORKER_ID=worker_1 WORKER_IDLE_ROUNDS=2 WORKER_INTERVAL_MS=50 \
+npx tsx apps/worker/src/main.ts

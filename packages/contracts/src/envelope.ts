@@ -35,6 +35,7 @@ export const CAPABILITIES = [
   'marketing.job.read',
   'marketing.privacy.request',
   'marketing.tenant.admin',
+  'marketing.delivery.run',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];

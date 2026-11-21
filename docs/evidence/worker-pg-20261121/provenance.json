@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-21",
+  "repository": "uniscrolliabrain-cloud/agntia-marketing",
+  "base_sha": "edeb621351c361ce4020dd3b1ffccc536f6c6f55",
+  "reviewed_source": "working tree sobre main edeb621 (worker de outbox como proceso, capability marketing.delivery.run, reloj real del servidor)",
+  "sources": {
+    "apps/worker/src/client.ts": "nuevo: drainOnce + runWorkerLoop",
+    "apps/worker/src/main.ts": "modo durable con WORKER_API_URL + WORKER_JWT; demo avisando",
+    "packages/contracts/src/envelope.ts": "capacidad marketing.delivery.run",
+    "packages/core/src/authority.ts": "MACHINE_EFFECTS + MACHINE_EFFECT_ROLES",
+    "apps/api/src/app.ts": "ruta interna exige marketing.delivery.run",
+    "packages/core/src/store.ts": "reloj por defecto documentado como fixture",
+    "apps/api/src/server.ts": "reloj real en el proceso",
+    "tests/worker/http-worker.test.ts": "9 pruebas del cliente y del bucle",
+    "tests/db/worker-drain.test.ts": "4 pruebas del worker sobre Postgres"
+  },
+  "environment": {
+    "postgres": {
+      "version": "18.7",
+      "distribution": "binarios del paquete npm embedded-postgres en /tmp (sin Docker, sin root)",
+      "port": 55433,
+      "database": "agntia_final",
+      "note": "La CI usa postgres:16; esta ejecución es una versión mayor distinta."
+    },
+    "api": "npx tsx apps/api/src/server.ts, PORT=8793, DEV_JWT_SECRET local de desarrollo",
+    "worker": "npx tsx apps/worker/src/main.ts, tres procesos, WORKER_IDLE_ROUNDS=2"
+  },
+  "runs": [
+    { "suite": "tests/worker/http-worker.test.ts", "tests": 9, "pass": 9, "fail": 0 },
+    { "suite": "tests/db/worker-drain.test.ts", "tests": 4, "pass": 4, "fail": 0 },
+    { "suite": "npx vitest run (completa, con DATABASE_URL)", "tests": 155, "pass": 155, "fail": 0 }
+  ],
+  "typecheck": { "command": "npx tsc -p tsconfig.json --noEmit", "exit_code": 0 },
+  "process_smoke": {
+    "workers": 3,
+    "server_processes": 1,
+    "seed": "campaña preparada con el dominio real y exportada a tenant_state; commit en memoria antes de exportar",
+    "observed": "worker_1 drenó 2 y confirmó 2; worker_2 y worker_3 quedaron inactivos; documento con 2 intents confirmed, 2 receipts, 2 intentId únicos y version 7",
+    "tandas_fallidas": [
+      "token firmado con otro secreto: 401 token_invalid en los tres procesos, documento intacto",
+      "aprobación caducada frente al reloj del servidor: intents cancelled con approval_expired, ningún envío"
+    ]
+  },
+  "defects_found": [
+    "La ruta interna exigía marketing.campaign.commit, un efecto humano: ningún worker no humano podía usarla (403 effect_requires_human).",
+    "apps/api/src/server.ts arrancaba con createStore() sin reloj, es decir con el reloj congelado de las pruebas (2026-11-14T12:00Z): los intents programados nunca vencían."
+  ],
+  "claims_verified": [
+    "Un worker de producto corre como proceso separado y entrega por la ruta interna del API sin reimplementar reglas.",
+    "Dos o tres procesos sobre el mismo tenant no entregan el mismo intent dos veces; hay un receipt por intent.",
+    "Los errores permanentes (token inválido, dependencia ausente) no se reintentan; los transitorios se reintentan con backoff.",
+    "Sin trabajo, el bucle para solo (stopReason idle) en lugar de girar indefinidamente.",
+    "El ACK de entrega sigue sin proveedor real: el adaptador es email_sandbox."
+  ],
+  "gates": {
+    "MKT-C22-G01": "PARTIAL (worker real sobre Postgres con exclusión por cerrojo de tenant; sigue sin for update skip locked ni proveedor real)",
+    "MKT-C22-G02": "NOT_VERIFIED_PRODUCT (el PEP de suspensión/takeover no está conectado al worker)",
+    "MKT-C41-G01": "NOT_VERIFIED (sin proveedor real)"
+  },
+  "limitations": [
+    "La exclusión mutua es por tenant, no por intent: dos workers del mismo tenant se serializan.",
+    "El worker sirve al tenant de su token; no descubre tenants ni reparte trabajo entre ellos.",
+    "El JWT del worker lo emite el despliegue; el repo no mina tokens de servicio.",
+    "Sin exactly-once: una caída entre el envío y la escritura deja el intent queued con el mensaje ya salido.",
+    "El worker de demo sigue disponible cuando faltan variables y avisa worker_mode=demo."
+  ]
+}

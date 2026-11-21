@@ -637,7 +637,9 @@ export function createApp(deps: AppDeps) {
   const WorkerRun = z.object({ workerId: z.string().min(1), limit: z.number().int().min(1).max(100).default(25), provider: z.enum(['email_sandbox']) }).strict();
   app.post(
     '/v1/marketing/internal/deliver',
-    mutate('marketing.campaign.commit', WorkerRun, async (p, body) => {
+    // La entrega la ejecuta un proceso (`worker`), no una persona: por eso tiene
+    // capability propia y no la del commit humano que ya autorizó el trabajo.
+    mutate('marketing.delivery.run', WorkerRun, async (p, body) => {
       const leased = leaseIntents(ctx, p.tenantId, body.workerId, body.limit);
       const results = [];
       for (const intent of leased) {
@@ -681,7 +683,11 @@ export function createApp(deps: AppDeps) {
   return app;
 }
 
-/** Arranque de conveniencia para `tsx apps/api/src/server.ts`. */
+/**
+ * Arranque de conveniencia para `tsx apps/api/src/server.ts`. Usa el reloj real:
+ * el valor por defecto de `createStore` está congelado para pruebas y dejaría
+ * aprobaciones e intents programados fuera del tiempo real.
+ */
 export function createDefaultContext(): Ctx {
-  return createStore();
+  return createStore(() => new Date());
 }

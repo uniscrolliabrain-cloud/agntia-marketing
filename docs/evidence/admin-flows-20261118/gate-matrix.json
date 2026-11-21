@@ -16,8 +16,8 @@
   },
   {
     "id": "MKT-C22-G01",
-    "status": "NOT_VERIFIED_PRODUCT",
-    "reason": "Dos sesiones SQL usan SKIP LOCKED correctamente; no hay worker de producto sobre Postgres ni proveedor real"
+    "status": "PARTIAL",
+    "reason": "Desde 2026-11-21 hay worker de producto como proceso propio: reclama y entrega por la ruta interna, que corre el dominio dentro del cerrojo de tenant_state, y tres procesos contra el mismo tenant no duplican entregas (tests/db/worker-drain.test.ts y docs/evidence/worker-pg-20261121). Sigue PARTIAL porque la exclusión es por tenant y no por intent: no se usa `for update skip locked` en la ruta de producto, y el único adaptador es email_sandbox, así que la entrega real sigue sin verificarse"
   },
   {
     "id": "MKT-C22-G02",

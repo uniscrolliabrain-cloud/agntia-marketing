@@ -33,7 +33,7 @@ o shell genéricos.
 
 ## 2. Capacidades y clases de efecto
 
-31 capacidades nominadas en `EFFECT_CLASS`:
+32 capacidades nominadas en `EFFECT_CLASS`:
 
 - **read:** `context.read`, `integration.read`, `brief.read`, `audience.preview`,
   `campaign.preview`, `journey.preview`, `landing.preview`, `observation.read`,
@@ -44,10 +44,15 @@ o shell genéricos.
   `advisor.session`.
 - **effect:** `campaign.commit`, `campaign.pause`, `campaign.reconcile`,
   `journey.enroll`, `landing.publish`, `ads.validate`, `privacy.request`,
-  `tenant.admin`.
+  `tenant.admin`, `delivery.run`.
 
 Todo `effect` exige humano con rol owner/operator y aprobación previa vinculada
 (`revisionHash`, `audienceMaxHash`, finalidad, canal, techo de coste, caducidad).
+
+`delivery.run` es la excepción de máquina: la ejecuta el proceso worker (rol
+`worker`) sobre intents que ya pasaron por la aprobación humana del commit. No
+autoriza a reclamar trabajo nuevo ni a aprobar nada, y los demás efectos siguen
+cerrados a actores no humanos (`effect_requires_human`).
 
 `tenant.admin` es la excepción deliberada: no es una operación de campaña, así
 que exige humano con rol **owner** (un `operator` no cambia roles ni el plan de
@@ -106,7 +111,7 @@ misma transacción (`0006`). Sin registro previo, el trigger responde `42501`.
 
 ## 8. Cambios propuestos en el padre (no aplicados)
 
-1. Registrar `marketing` como servicio especialista con sus 31 capacidades y
+1. Registrar `marketing` como servicio especialista con sus 32 capacidades y
    clases de efecto en el mapa de autoridad del kernel.
 2. Definir el contrato de handoff entrante/saliente con ACK firmado y TTL.
 3. Aceptar el hash de audiencia congelada como prueba de no ampliación, o

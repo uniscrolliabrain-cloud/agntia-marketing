@@ -257,7 +257,40 @@ re-ejecutada sobre Postgres 18.7 tras restaurar el sandbox, y con los dos jobs d
 CI en success sobre `1b93d17` (`docs/evidence/tenant-state-20261118/`).
 
 Sigue abierto lo mismo que antes y no se maquilla: el cerrojo es por tenant, no
-por rebanada; el worker de producto no existe sobre Postgres; no hay proveedor
-real ni exactly-once. La opción A (dominio asíncrono) sigue siendo el camino para
-`MKT-C22-G01`, y sigue siendo un cambio de contrato que conviene hacer por
-rebanada vertical y con su propia prueba de reinicio.
+por rebanada; no hay proveedor real ni exactly-once. La opción A (dominio
+asíncrono) sigue siendo el camino para reclamar por intent con `for update skip
+locked`, y sigue siendo un cambio de contrato que conviene hacer por rebanada
+vertical y con su propia prueba de reinicio.
+
+### Actualización 2026-11-21 (3): el worker ya entrega como proceso
+
+Se descartó por ahora la migración asíncrona completa (9 módulos, 121 accesos,
+~50 pruebas: un cambio de contrato que no se cierra bien de una vez) y se cerró la
+pieza que faltaba para que la persistencia sirva de algo: un **worker de producto**
+como proceso propio. `apps/worker/src/client.ts` reclama y entrega por
+`POST /v1/marketing/internal/deliver`; el API corre el dominio dentro del cerrojo
+del tenant y escribe en `tenant_state`. Ninguna regla duplicada.
+
+Dos defectos aparecieron al ejecutarlo, y ninguno era teórico:
+
+1. La ruta interna exigía `marketing.campaign.commit`, que es un efecto humano:
+   un actor no humano recibía `403 effect_requires_human`. Con ese contrato el
+   worker de producto no podía existir. Se añadió `marketing.delivery.run` como
+   efecto de máquina nombrado uno a uno (rol `worker`), y los demás efectos
+   siguen cerrados a actores no humanos.
+2. `apps/api/src/server.ts` arrancaba con `createStore()` sin reloj, es decir con
+   el reloj **congelado** de las pruebas (`2026-11-14T12:00Z`). Los intents
+   programados nunca vencían y las aprobaciones caducaban contra una fecha fija.
+   El proceso usa ahora el reloj real; el valor por defecto queda documentado como
+   fixture.
+
+Verificado: 13 pruebas nuevas (155/155 con `DATABASE_URL`, `tsc` exit 0) y un humo
+con **tres procesos worker** contra el servidor real y Postgres: uno drena los dos
+intents, los otros dos quedan inactivos, y hay exactamente dos receipts para dos
+intents distintos (`docs/evidence/worker-pg-20261121/`). En el camino se registraron
+dos tandas fallidas honestas: token con otro secreto → `401` sin tocar el documento;
+aprobación caducada → intents `cancelled` con `approval_expired`.
+
+Lo que sigue abierto: la exclusión es por tenant, no por intent (`skip locked`
+pendiente, `MKT-C22-G01` sigue `PARTIAL`), el worker sirve al tenant de su token y
+no descubre tenants, no hay proveedor real (`MKT-C41-G01`), y no hay exactly-once.

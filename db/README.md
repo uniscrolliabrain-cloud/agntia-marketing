@@ -2,7 +2,7 @@
 
 **Estado: VERIFICADO en Postgres 16.15 real** (2026-11-18), sin Docker: se
 extrajeron los binarios oficiales de Ubuntu en espacio de usuario y se levantó un
-clúster propio. Las cinco migraciones aplican en un Postgres limpio y
+clúster propio. Las siete migraciones (`0001`–`0007`) aplican en un Postgres limpio y
 `tests/db/postgres.test.ts` (13 pruebas) cubre RLS fail-closed, aislamiento por
 tenant, FK cross-tenant, dedupe de outbox, `SKIP LOCKED` con dos workers,
 rollback y el contador compartido de rate limit. Los ocho hallazgos P1 de la
@@ -10,9 +10,14 @@ revisión nativa (`PG-01` … `PG-08`) están corregidos en `0005` y revalidados
 `tests/postgres/native_postgres.py` (38/38) en
 `docs/evidence/db-hardening-20261118/`.
 
-Lo que sigue sin verificarse: **el API y el worker no usan Postgres todavía**.
-La persistencia real es la campaña pendiente; hoy el dominio corre en memoria y
-estas migraciones son la base que debe consumir ese repositorio.
+**Actualización 2026-11-21.** El API ya usa Postgres: autoriza leyendo `tenants` y
+`memberships`, guarda el agregado del tenant en `tenant_state` (`0007`) y el worker
+de outbox entrega como proceso propio por la ruta interna, con exclusión por
+cerrojo de tenant (`docs/evidence/worker-pg-20261121/`). Lo que sigue sin
+verificarse es la **ruta normalizada**: `campaigns`, `outbound_intents` y
+`receipts` existen y su `SKIP LOCKED` está probado en SQL, pero el producto no los
+consume todavía — el estado vive en un documento JSONB por tenant, que serializa
+al tenant entero. El worker tampoco habla con la base: entrega por HTTP.
 
 Las operaciones que `0005` cerró al rol de datos —purga de auditoría, cambio de
 membresías y de plan— tienen desde `0006` una vía propia y auditada
@@ -188,7 +193,8 @@ select 'subject', i.tenant_id, i.id, i.subject_ref
 
 ## Contrato de sesión
 
-Cada transacción del API o del worker fija el tenant verificado:
+Cada transacción del API fija el tenant verificado (el worker no abre
+transacciones: entrega por la ruta interna del API, que es quien fija el tenant):
 
 ```sql
 begin;

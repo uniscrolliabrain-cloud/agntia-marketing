@@ -50,6 +50,7 @@ export const EFFECT_CLASS: Record<Capability, EffectClass> = {
   'marketing.creative.write': 'prepare',
   'marketing.campaign.preview': 'read',
   'marketing.campaign.commit': 'effect',
+  'marketing.delivery.run': 'effect',
   'marketing.campaign.pause': 'effect',
   'marketing.campaign.reconcile': 'effect',
   'marketing.journey.preview': 'read',
@@ -77,6 +78,13 @@ const EFFECT_ROLES = new Set(['owner', 'operator']);
 // Administrar el tenant (plan, membresías, purga) no es una operación de
 // campaña: un operator no cambia roles ni el plan de su propio tenant.
 const ADMIN_ROLES = new Set(['owner']);
+/**
+ * Efectos que ejecuta un proceso sobre trabajo que un humano ya aprobó: la
+ * entrega del outbox. Se nombran uno a uno para que un `worker` no herede el
+ * resto de efectos (commit, pausa, ads) ni pueda aprobarse trabajo a sí mismo.
+ */
+const MACHINE_EFFECTS = new Set<Capability>(['marketing.delivery.run']);
+const MACHINE_EFFECT_ROLES = new Set(['owner', 'operator', 'worker']);
 
 /**
  * Hechos de autorización ya resueltos: si el tenant del JWT existe y cuál es su
@@ -141,12 +149,14 @@ export function authorize(principal: Principal, capability: Capability): void {
     return;
   }
   const effect = EFFECT_CLASS[capability];
-  const allowed =
-    effect === 'read' ? READ_ROLES : effect === 'prepare' ? PREPARE_ROLES : EFFECT_ROLES;
+  const machine = MACHINE_EFFECTS.has(capability);
+  const allowed = effect === 'read' ? READ_ROLES : effect === 'prepare' ? PREPARE_ROLES : machine ? MACHINE_EFFECT_ROLES : EFFECT_ROLES;
   if (!principal.roles.some((r) => allowed.has(r))) {
     throw new MarketingError('FORBIDDEN', 'role_not_allowed');
   }
-  if (effect === 'effect' && !principal.isHuman) {
+  // Entrega de outbox: la ejecuta un proceso, pero sólo sobre intents que ya
+  // pasaron por la aprobación humana del commit. No abre ningún otro efecto.
+  if (effect === 'effect' && !principal.isHuman && !machine) {
     throw new MarketingError('FORBIDDEN', 'effect_requires_human');
   }
 }

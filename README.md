@@ -2,14 +2,14 @@
 
 Diseño de empresa SaaS especialista en marketing, investigación de mercado, campañas y medición, con middleware para `uniscrolliabrain-cloud/agente`. Entrega documental 3/9 · 12 de noviembre de 2026.
 
-**IMPLEMENTADO EN `main`.** Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor. El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. Postgres 16 sí se ha ejecutado: la capa SQL está verificada con un runner nativo y evidencia auditable ([db](db/README.md)), pero **el worker sigue usando el store en memoria** y el estado de producto del API se guarda en un documento por tenant (`tenant_state`, etapa 1: sobrevive al reinicio, pero no es la ruta normalizada), así que la persistencia de producto se declara `NOT_VERIFIED` (la única ruta que ya escribe en Postgres es la administrativa, `POST /v1/marketing/admin/actions`, verificada el 2026-11-18; desde esa fecha el API **autoriza** leyendo tenant y membership de Postgres y persiste el agregado del tenant con un escritor por tenant). No hay proveedores conectados: esas capacidades están deshabilitadas y no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
+**IMPLEMENTADO EN `main`.** Las 42 campañas tienen código y pruebas: 23 DONE, 15 PARTIAL y 4 BLOCKED por proveedor. El estado real, fase por fase, está en [el anexo de ejecución](docs/evidence/ANEXO-42-FASES.md) y en el reporte dentro de cada `CAMPAIGN.md`. Postgres 16 sí se ha ejecutado: la capa SQL está verificada con un runner nativo y evidencia auditable ([db](db/README.md)), el worker de outbox ya corre como proceso propio y entrega sin duplicar (tres procesos contra el mismo tenant, 2026-11-21) y el estado de producto del API se guarda en un documento por tenant (`tenant_state`, etapa 1: sobrevive al reinicio, pero no es la ruta normalizada), así que la persistencia de producto sigue `PARTIAL` y no `PASS` (la vía administrativa, `POST /v1/marketing/admin/actions`, se verificó el 2026-11-18; desde esa fecha el API **autoriza** leyendo tenant y membership de Postgres y persiste el agregado del tenant con un escritor por tenant). No hay proveedores conectados: esas capacidades están deshabilitadas y no se simulan. El objetivo de calidad toma referentes mundiales, sin afirmar paridad actual, ingresos garantizados o cumplimiento universal.
 
 ## Implementación
 
 ```bash
 npm install
 npm run typecheck     # tsc estricto, sin emitir
-npm test              # 142 pruebas (107 de campañas + 18 de Postgres real + 12 del API contra Postgres + 5 de estado durable)
+npm test              # 155 pruebas (107 de campañas + 18 de Postgres real + 12 del API contra Postgres + 5 de estado durable + 13 del worker de outbox)
 npm run api:dev       # API Hono en :8787 (portal en /portal/)
 npm run worker:dev    # ciclo outbox → sandbox → receipt
 ```

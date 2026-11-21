@@ -367,6 +367,13 @@ export interface Ctx {
   policyVersion: string;
 }
 
+/**
+ * Store en memoria. **El reloj por defecto está congelado**: es una fixture
+ * determinista para pruebas, no el reloj de un proceso. Un servidor o un worker
+ * real deben pasar `() => new Date()`; con el valor por defecto las aprobaciones
+ * caducan o no caducan según una fecha fija y los intents programados nunca
+ * vencen (encontrado en el humo del worker, 2026-11-21).
+ */
 export function createStore(now: () => Date = () => new Date('2026-11-14T12:00:00Z')): Ctx {
   return { store: new MemoryStore(), now, policyVersion: 'policy-2026-11-14.1' };
 }

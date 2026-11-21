@@ -38,8 +38,13 @@ export async function makeHarness(options: {
   contactPolicy?: { maxPerSubjectPerWindow: number; windowHours: number; quietHours?: { startUtcHour: number; endUtcHour: number }; timezone?: string };
   ackSecret?: string;
   rateLimiter?: RateLimiter;
+  /**
+   * Reloj inicial. Los tests usan el fijo; un humo con proceso real necesita
+   * una aprobación vigente frente al reloj del servidor, no una caducada.
+   */
+  startAt?: string;
 } = {}): Promise<Harness> {
-  let clock = new Date('2026-11-14T10:00:00Z');
+  let clock = new Date(options.startAt ?? '2026-11-14T10:00:00Z');
   const ctx = createStore(() => clock);
   const advance = (ms: number) => {
     clock = new Date(clock.getTime() + ms);

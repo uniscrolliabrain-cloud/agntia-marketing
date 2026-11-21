@@ -55,7 +55,8 @@ const ackSecret = process.env.HANDOFF_ACK_SECRET;
 if (!ackSecret) console.warn('handoff_ack=unsigned: define HANDOFF_ACK_SECRET para firmar ACKs');
 else if (ackSecret.length < 16) throw new Error('HANDOFF_ACK_SECRET_too_short');
 
-const ctx = createStore();
+// Reloj real: el proceso no puede arrancar con el reloj congelado de las pruebas.
+const ctx = createStore(() => new Date());
 // El documento de estado del tenant es la verdad entre peticiones; sin Postgres
 // el store se queda en el proceso y el reinicio lo pierde, y el proceso lo dice.
 const state = pool ? new PgTenantStateStore(pool, ctx) : undefined;
