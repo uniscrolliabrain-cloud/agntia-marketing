@@ -13,11 +13,13 @@ revisión nativa (`PG-01` … `PG-08`) están corregidos en `0005` y revalidados
 **Actualización 2026-11-21.** El API ya usa Postgres: autoriza leyendo `tenants` y
 `memberships`, guarda el agregado del tenant en `tenant_state` (`0007`) y el worker
 de outbox entrega como proceso propio por la ruta interna, con exclusión por
-cerrojo de tenant (`docs/evidence/worker-pg-20261121/`). Lo que sigue sin
-verificarse es la **ruta normalizada**: `campaigns`, `outbound_intents` y
-`receipts` existen y su `SKIP LOCKED` está probado en SQL, pero el producto no los
-consume todavía — el estado vive en un documento JSONB por tenant, que serializa
-al tenant entero. El worker tampoco habla con la base: entrega por HTTP.
+cerrojo de tenant (`docs/evidence/worker-pg-20261121/`).
+
+Lo que sigue sin verificarse: la **ruta normalizada**. `campaigns`,
+`outbound_intents` y `receipts` existen y su `SKIP LOCKED` está probado en SQL,
+pero el producto no los consume todavía — el estado vive en un documento JSONB por
+tenant, que serializa al tenant entero. El worker tampoco habla con la base:
+entrega por HTTP.
 
 Las operaciones que `0005` cerró al rol de datos —purga de auditoría, cambio de
 membresías y de plan— tienen desde `0006` una vía propia y auditada
