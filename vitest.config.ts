@@ -16,5 +16,12 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     reporters: ['default'],
+    // Las suites de `tests/db` comparten UNA base y llaman a `applyMigrations`
+    // (DDL: `revoke`/`grant`, roles, triggers) en su `beforeAll`, además de
+    // sembrar y borrar tenants globales. En paralelo, una lectura puede caer en
+    // la ventana en que otra suite revoca permisos y el borde responde 503
+    // fail-closed —fue un fallo real en CI el 2026-11-23—. En serie es
+    // determinista; el coste es de segundos.
+    fileParallelism: false,
   },
 });

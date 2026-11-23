@@ -76,3 +76,28 @@ Guía para el padre: [`docs/release/INSTALACION-EN-PADRE.md`](../../release/INST
   está verificado hoy es la ruta HTTP+Postgres con dos workers concurrentes.
 - El Postgres de esta evidencia es `embedded-postgres` 19.0 (beta) en el puerto
   55434; CI usa `postgres:16`. Ninguno de los dos acredita un entorno gestionado.
+
+## 5. Fallo real de CI y su causa
+
+El primer run de CI sobre `94f4d86` falló en el job `database`:
+
+```
+FAIL tests/db/api-principals.test.ts > aplica scopes y expiración del token verificado
+  → expected 503 to be 403
+```
+
+No era el cambio de entrega: era una **carrera entre archivos de prueba**. Las
+cinco suites de `tests/db` comparten una sola base y cada una llama a
+`applyMigrations` en su `beforeAll`, que ejecuta DDL (`revoke`/`grant` de
+`0005`, roles y triggers de `0006`), además de sembrar y borrar tenants globales.
+En paralelo, una lectura de `tenants` puede caer justo en la ventana en que otra
+suite revoca los permisos de `authenticated`; el borde no autoriza con datos
+viejos y responde `503 principal_lookup_failed`, que es **lo correcto**.
+
+Arreglo: `fileParallelism: false` en `vitest.config.ts`, con el motivo escrito al
+lado. Verificado con dos corridas seguidas: 169/169 las dos veces, 8 s cada una
+(el coste de serializar es de un segundo). No se relajó ninguna aserción ni se
+convirtió el 503 en un PASS.
+
+Antes de este cambio el verde local era cuestión de suerte de planificación:
+PostgreSQL 19 y este host no reproducían el cruce, `postgres:16` en CI sí.

@@ -40,3 +40,17 @@ $ npm run verify:pack
 {"ok":true,"tools":8,"event":"specialist.work_item.updated","contract":"1.0.0"}
 {"installedInto":"/workspace/chats/805d32fda8bf94c57eaad33c/dist/npm/consumer","result":"PASS"}
 exit=0
+
+$ # tras serializar los archivos de prueba (vitest fileParallelism: false)
+$ DATABASE_URL=… npx vitest run   # corrida 1
+      Tests  169 passed (169)
+   Start at  19:10:43
+   Duration  7.43s (transform 539ms, setup 0ms, collect 1.89s, tests 2.61s, environment 3ms, prepare 911ms)
+
+exit=0
+$ DATABASE_URL=… npx vitest run   # corrida 2
+      Tests  169 passed (169)
+   Start at  19:10:51
+   Duration  7.63s (transform 565ms, setup 0ms, collect 1.99s, tests 2.72s, environment 3ms, prepare 935ms)
+
+exit=0
