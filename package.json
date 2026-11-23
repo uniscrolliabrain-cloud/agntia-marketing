@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "api:dev": "tsx apps/api/src/server.ts",
     "worker:dev": "tsx apps/worker/src/main.ts",
-    "db:migrate": "node scripts/db-migrate.mjs"
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "pack:sdk": "node scripts/pack-packages.mjs",
+    "verify:pack": "node scripts/verify-pack-install.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

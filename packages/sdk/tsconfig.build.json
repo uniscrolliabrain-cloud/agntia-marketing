@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@agntia/contracts": ["packages/contracts/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

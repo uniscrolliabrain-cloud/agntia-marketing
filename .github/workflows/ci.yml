@@ -17,6 +17,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # El paquete del padre no se publica, pero un build roto sí se detecta.
+      - run: npm run pack:sdk
 
   database:
     runs-on: ubuntu-latest
