@@ -318,3 +318,51 @@ Verificado: 10 pruebas nuevas (`tests/worker/worker-daemon.test.ts`), 165/165 co
 en `docs/evidence/worker-daemon-20261121/`. No cambia ningún límite de fondo: la
 exclusión sigue siendo por tenant (`for update skip locked` pendiente), el worker
 sirve a un tenant, no hay proveedor real y no hay exactly-once.
+
+### Actualización 2026-11-23 (5): la red ya no corre bajo el cerrojo
+
+El worker seguía reclamando, enviando y liquidando dentro de **una sola**
+transacción con `select … for update` sobre `tenant_state`. El cerrojo del tenant
+cubría la llamada al proveedor: un envío de 15 s bloqueaba el tenant entero. Eso
+no era un problema teórico, era el techo del paso 1 de la opción A.
+
+Ahora el borde del API abre tres tramos (`apps/api/src/app.ts`):
+
+1. **reclamo** bajo cerrojo: `expireLeases` + `leaseIntents`, con la revalidación
+   de aprobación, consentimiento, supresión y frecuencia que ya existía;
+2. **envío** con cero transacciones abiertas: `sendIntent` sólo habla con el
+   adaptador (`packages/core/src/delivery.ts`);
+3. **liquidación** bajo cerrojo y con el fence del lease (`settleIntent`): si el
+   intent ya no está `leased` con ese fence, no se escribe nada.
+
+La recuperación del proceso que muere entre 2 y 3 es `expireLeases`: el intent
+pasa a `unknown` con `reconciliationRequired` y `lastError: lease_expired`, deja
+evento `marketing.effect.outcome_unknown` y auditoría, y **nunca** vuelve a
+`queued`. Sin exactly-once, devolverlo a la cola sería reenviar a ciegas.
+
+Verificado: 4 pruebas nuevas (`tests/worker/two-phase-delivery.test.ts`, entre
+otras la que mide que el envío ocurre con **cero** transacciones abiertas), 169/169
+con `DATABASE_URL` sobre PostgreSQL 19.0, 130 passed / 39 skipped sin base y `tsc`
+exit 0 (`docs/evidence/vertical-slice-20261123/`). La ruta HTTP+Postgres con dos
+workers concurrentes sigue en verde y ahora ejercita los tres tramos.
+
+Lo que **no** cambia y no hay que confundir: el reclamo sigue siendo por tenant,
+no por intent (`for update skip locked` sobre `outbound_intents` sigue pendiente,
+`MKT-C22-G01` continúa `PARTIAL`); no hay exactly-once; no hay proveedor real; y
+no se ejecutó humo de proceso en esta tanda. La opción A completa (dominio
+asíncrono con repositorio Postgres) sigue abierta, pero ya no es requisito para
+que un envío lento no congele al tenant.
+
+### Actualización 2026-11-23 (6): el SDK se puede instalar en el padre
+
+`@agntia/contracts` y `@agntia/sdk` no eran instalables: `main`/`exports`
+apuntaban a `src/index.ts` y los dos paquetes eran `private`. `npm run pack:sdk`
+compila a `dist/`, reescribe los especificadores relativos con `.js` (Node ESM),
+genera un `package.json` de distribución y deja los tarballs en `dist/npm/`.
+`npm run verify:pack` los instala con `npm install` real en un consumidor limpio y
+ejercita las 8 tools y `toParentEvent`. Guía: `docs/release/INSTALACION-EN-PADRE.md`.
+
+El workspace no cambia de forma de consumo (`src` + alias), así que `npm test` y
+`npm run api:dev` siguen sin compilar. Lo que sigue abierto: no hay publicación en
+ningún registro, `verify:pack` necesita red para `zod`, y el registro de
+capacidades en el kernel del padre sigue siendo propuesta, no hecho.

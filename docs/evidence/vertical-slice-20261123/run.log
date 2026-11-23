@@ -1,0 +1,42 @@
+# Evidencia · rebanada vertical de entrega + paquete instalable · 2026-11-23
+# node v26.13.1 · Version 5.9.3 · PostgreSQL 19.0 (embedded-postgres, puerto 55434)
+
+$ npx tsc -p tsconfig.json --noEmit
+exit=0
+
+$ DATABASE_URL=postgres://postgres@127.0.0.1:55434/agntia_final npx vitest run
+ ✓ tests/db/worker-drain.test.ts (4 tests) 339ms
+ ✓ tests/worker/worker-daemon.test.ts (10 tests) 19ms
+ ✓ tests/worker/two-phase-delivery.test.ts (4 tests) 114ms
+ ✓ tests/worker/http-worker.test.ts (9 tests) 20ms
+ ✓ tests/campaigns/handoff-ack.test.ts (6 tests) 52ms
+ ✓ tests/campaigns/c41-c42.test.ts (8 tests) 18ms
+
+ Test Files  15 passed (15)
+      Tests  169 passed (169)
+   Start at  19:04:06
+   Duration  7.87s (transform 569ms, setup 0ms, collect 2.05s, tests 2.86s, environment 3ms, prepare 926ms)
+
+exit=0
+
+$ env -u DATABASE_URL npx vitest run
+ ✓ tests/campaigns/handoff-ack.test.ts (6 tests) 53ms
+ ✓ tests/campaigns/c41-c42.test.ts (8 tests) 20ms
+
+ Test Files  10 passed | 5 skipped (15)
+      Tests  130 passed | 39 skipped (169)
+   Start at  19:04:15
+   Duration  6.00s (transform 530ms, setup 0ms, collect 1.96s, tests 1.05s, environment 3ms, prepare 949ms)
+
+exit=0
+
+$ npm run verify:pack
+
+> agntia-marketing@0.1.0 verify:pack
+> node scripts/verify-pack-install.mjs
+
+{"packed":"@agntia/contracts","tarball":"/workspace/chats/805d32fda8bf94c57eaad33c/dist/npm/agntia-contracts-0.1.0.tgz","esmSpecifiersRewritten":3}
+{"packed":"@agntia/sdk","tarball":"/workspace/chats/805d32fda8bf94c57eaad33c/dist/npm/agntia-sdk-0.1.0.tgz","esmSpecifiersRewritten":3}
+{"ok":true,"tools":8,"event":"specialist.work_item.updated","contract":"1.0.0"}
+{"installedInto":"/workspace/chats/805d32fda8bf94c57eaad33c/dist/npm/consumer","result":"PASS"}
+exit=0

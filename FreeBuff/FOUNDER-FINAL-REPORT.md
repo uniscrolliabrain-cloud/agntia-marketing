@@ -29,7 +29,7 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 - `apps/api`: Hono, JWT, rate limit, rutas y portal.
 - `apps/worker`: outbox con fence y receipts; bucle acotado (`drain`) y servicio (`daemon`) con latido, parada ordenada por señal y salida degradada.
 - `db/migrations`: esquema con RLS forzada, hardening y flujo administrativo auditado (`0001`–`0006`), **ejecutados y verificados** en Postgres 16.15.
-- `tests/`: 165 pruebas en 14 archivos (incluye integración contra Postgres real, el worker de outbox y su modo servicio).
+- `tests/`: 169 pruebas en 15 archivos (incluye integración contra Postgres real, el worker de outbox y su modo servicio, y la entrega en dos fases con el envío fuera del cerrojo).
 - `docs/`: baseline, diff con el padre, anexo de 42 fases y evidencia final.
 
 ## 5. Tests y resultados verificables
@@ -37,7 +37,7 @@ Postgres o de un proveedor real; los `BLOCKED` no tienen cuenta ni licencia.
 ```
 npx tsc -p tsconfig.json --noEmit   # exit 0
 npx vitest run                      # 126 passed, 39 skipped (sin DB)
-DATABASE_URL=… npx vitest run       # 165 passed (165), Postgres real
+DATABASE_URL=… npx vitest run       # 169 passed (169), Postgres real
 tests/postgres/native_postgres.py   # 39/39 PASS, clúster nuevo (ver docs/evidence/admin-flows-20261118)
 ```
 

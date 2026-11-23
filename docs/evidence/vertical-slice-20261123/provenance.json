@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-11-23",
+  "repo": "uniscrolliabrain-cloud/agntia-marketing",
+  "baseSha": "9ff493e50ac8df5c693f23927a509c5233064f8b",
+  "scope": [
+    "entrega en dos fases del worker (MKT-C22)",
+    "paquete instalable para el repo padre (MKT-C35)"
+  ],
+  "environment": {
+    "node": "v26.13.1",
+    "typescript": "5.9.3",
+    "database": "PostgreSQL 19.0 (embedded-postgres 19.0.0-beta.20) en 127.0.0.1:55434, base agntia_final",
+    "ciDatabase": "postgres:16 (no ejecutado en este turno)",
+    "os": "linux x64"
+  },
+  "commands": [
+    {
+      "command": "npx tsc -p tsconfig.json --noEmit",
+      "exit": 0
+    },
+    {
+      "command": "DATABASE_URL=postgres://postgres@127.0.0.1:55434/agntia_final npx vitest run",
+      "exit": 0,
+      "result": "169 passed / 15 files"
+    },
+    {
+      "command": "env -u DATABASE_URL npx vitest run",
+      "exit": 0,
+      "result": "130 passed, 39 skipped"
+    },
+    {
+      "command": "npm run verify:pack",
+      "exit": 0,
+      "result": "tarballs @agntia/contracts y @agntia/sdk instalados con npm install real; 8 tools; PASS"
+    }
+  ],
+  "artifacts": [
+    "dist/npm/agntia-contracts-0.1.0.tgz (no versionado)",
+    "dist/npm/agntia-sdk-0.1.0.tgz (no versionado)",
+    "docs/evidence/vertical-slice-20261123/run.log"
+  ],
+  "notVerified": [
+    "exactly-once HTTP",
+    "claim por intent con for update skip locked (MKT-C22-G01 sigue PARTIAL)",
+    "proveedor de email real (MKT-C41-G01)",
+    "humo de proceso con SIGTERM en esta tanda",
+    "publicacion del paquete en un registro",
+    "YZWKS asimetrico de Supabase contra un proyecto real"
+  ]
+}
