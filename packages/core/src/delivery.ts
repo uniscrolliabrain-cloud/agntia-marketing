@@ -5,7 +5,7 @@ import {
   type AdsProposal,
   type ConnectionInput,
 } from '@agntia/contracts';
-import type { AdapterRegistry, SendOutcome } from '@agntia/adapters';
+import type { AdapterRegistry, SendOutcome, SendRequest } from '@agntia/adapters';
 import type { ConnectionRecord, Ctx, OutboundIntentRecord } from './store';
 import type { Principal } from './authority';
 import { transition } from './campaigns';
@@ -141,34 +141,71 @@ export function leaseIntents(ctx: Ctx, tenantId: string, workerId: string, limit
   return leased;
 }
 
-export async function deliverIntent(
-  ctx: Ctx,
+/**
+ * Entrega en dos fases (rebanada vertical campaña → commit → lease → delivery →
+ * receipt). El cerrojo del tenant serializa el estado, pero **no** debe cubrir la
+ * red: un proveedor lento retendría el tenant entero durante todo su timeout.
+ *
+ * Fase 1 `leaseIntents` (bajo cerrojo, milisegundos) → fase 2 `sendIntent` (sin
+ * transacción) → fase 3 `settleIntent` (bajo cerrojo, con el fence del lease).
+ * Si el proceso muere entre 2 y 3 el intent queda `leased` y `expireLeases` lo
+ * deja en `unknown` para reconciliación: nunca se reenvía a ciegas.
+ */
+export function prepareSend(intent: OutboundIntentRecord): SendRequest {
+  return {
+    tenantId: intent.tenantId,
+    intentId: intent.id,
+    subjectRef: intent.subjectRef,
+    channel: intent.channel,
+    payloadHash: intent.payloadHash,
+    idempotencyKey: intent.operationKey,
+  };
+}
+
+/** Sólo habla con el adaptador: no lee ni escribe estado, así que no necesita el cerrojo. */
+export async function sendIntent(
   registry: AdapterRegistry,
-  intentId: string,
-  fence: number,
-  provider: keyof AdapterRegistry = 'email_sandbox',
-): Promise<DeliveryOutcome> {
-  const intent = ctx.store.intents.find((i) => i.id === intentId);
-  if (!intent) throw new MarketingError('NOT_FOUND', 'intent_not_found');
-  if (intent.state !== 'leased') throw new MarketingError('CONFLICT', `intent_not_leased:${intent.state}`);
-  if (intent.leaseFence !== fence) throw new MarketingError('CONFLICT', 'stale_lease_fence');
-
+  provider: keyof AdapterRegistry,
+  request: SendRequest,
+): Promise<SendOutcome> {
   const adapter = registry[provider];
-  if (!adapter.send) throw new MarketingError('DEPENDENCY_MISSING', `provider_has_no_send:${provider}`);
-
-  let outcome: SendOutcome;
+  if (!adapter.send) return { kind: 'failed', code: 'provider_has_no_send', retryable: false };
   try {
-    outcome = await adapter.send({
-      tenantId: intent.tenantId,
-      intentId: intent.id,
-      subjectRef: intent.subjectRef,
-      channel: intent.channel,
-      payloadHash: intent.payloadHash,
-      idempotencyKey: intent.operationKey,
-    });
+    return await adapter.send(request);
   } catch (err) {
     const e = err as Error;
-    outcome = { kind: 'failed', code: e.name === 'MarketingError' ? 'provider_unavailable' : 'provider_error', retryable: true };
+    return { kind: 'failed', code: e.name === 'MarketingError' ? 'provider_unavailable' : 'provider_error', retryable: true };
+  }
+}
+
+export interface SettlementResult extends DeliveryOutcome {
+  /** `false` si el lease ya no era nuestro: no se tocó el store. */
+  applied: boolean;
+}
+
+/**
+ * Fase 3: aplica el resultado del envío sólo si el intent sigue `leased` con el
+ * mismo fence. Sin eso, una vuelta tardía reescribiría un receipt ajeno o
+ * marcaría confirmado un intent que otra vuelta ya declaró incierto.
+ */
+export function settleIntent(
+  ctx: Ctx,
+  tenantId: string,
+  intentId: string,
+  fence: number,
+  outcome: SendOutcome,
+  provider: keyof AdapterRegistry = 'email_sandbox',
+): SettlementResult {
+  const intent = ctx.store.intents.find((i) => i.tenantId === tenantId && i.id === intentId);
+  if (!intent) throw new MarketingError('NOT_FOUND', 'intent_not_found');
+  if (intent.state !== 'leased' || intent.leaseFence !== fence) {
+    return {
+      intentId,
+      state: intent.state,
+      remoteId: null,
+      code: intent.state === 'leased' ? 'lease_conflict' : `lease_not_held:${intent.state}`,
+      applied: false,
+    };
   }
 
   const at = ctx.now().toISOString();
@@ -196,7 +233,7 @@ export async function deliverIntent(
       type: 'marketing.effect.confirmed',
       payloadRefs: [{ kind: 'intent', id: intent.id }],
     });
-    return { intentId, state: 'confirmed', remoteId: outcome.remoteId, code: null };
+    return { intentId, state: 'confirmed', remoteId: outcome.remoteId, code: null, applied: true };
   }
 
   if (outcome.kind === 'unknown') {
@@ -213,12 +250,71 @@ export async function deliverIntent(
       type: 'marketing.effect.outcome_unknown',
       payloadRefs: [{ kind: 'intent', id: intent.id }],
     });
-    return { intentId, state: 'unknown', remoteId: null, code: outcome.code };
+    return { intentId, state: 'unknown', remoteId: null, code: outcome.code, applied: true };
   }
 
   intent.lastError = outcome.code;
   intent.state = outcome.retryable && intent.attempts < 3 ? 'queued' : 'failed';
-  return { intentId, state: intent.state, remoteId: null, code: outcome.code };
+  return { intentId, state: intent.state, remoteId: null, code: outcome.code, applied: true };
+}
+
+/** Una sola pasada: reclamar, enviar y liquidar (worker en memoria y pruebas). */
+export async function deliverIntent(
+  ctx: Ctx,
+  registry: AdapterRegistry,
+  intentId: string,
+  fence: number,
+  provider: keyof AdapterRegistry = 'email_sandbox',
+): Promise<DeliveryOutcome> {
+  const intent = ctx.store.intents.find((i) => i.id === intentId);
+  if (!intent) throw new MarketingError('NOT_FOUND', 'intent_not_found');
+  if (intent.state !== 'leased') throw new MarketingError('CONFLICT', `intent_not_leased:${intent.state}`);
+  if (intent.leaseFence !== fence) throw new MarketingError('CONFLICT', 'stale_lease_fence');
+
+  const tenantId = intent.tenantId;
+  const outcome = await sendIntent(registry, provider, prepareSend(intent));
+  const settled = settleIntent(ctx, tenantId, intentId, fence, outcome, provider);
+  return { intentId, state: settled.state, remoteId: settled.remoteId, code: settled.code };
+}
+
+export interface LeaseExpiry {
+  expired: number;
+  intentIds: string[];
+}
+
+/**
+ * Recuperación de leases huérfanos: un proceso que murió entre el reclamo y la
+ * liquidación dejó el intent `leased`. Devolverlo a `queued` reenviaría a ciegas
+ * —el remoto pudo aceptarlo—, así que pasa a `unknown` con reconciliación
+ * obligatoria. `resend` no existe aquí por diseño.
+ */
+export function expireLeases(ctx: Ctx, tenantId: string, ttlMs: number, actorId = 'system'): LeaseExpiry {
+  if (!Number.isFinite(ttlMs) || ttlMs <= 0) throw new MarketingError('INVALID', 'lease_ttl_out_of_range');
+  const now = ctx.now();
+  const intentIds: string[] = [];
+  for (const intent of ctx.store.intents) {
+    if (intent.tenantId !== tenantId) continue;
+    if (intent.state !== 'leased') continue;
+    if (now.getTime() - Date.parse(intent.updatedAt) <= ttlMs) continue;
+
+    intent.state = 'unknown';
+    intent.reconciliationRequired = true;
+    intent.lastError = 'lease_expired';
+    intent.updatedAt = now.toISOString();
+    intentIds.push(intent.id);
+    ctx.store.events.push({
+      id: newId('evt'),
+      tenantId,
+      actorRef: `worker:${actorId}`,
+      occurredAt: intent.updatedAt,
+      correlationId: intent.campaignId,
+      causationId: intent.id,
+      type: 'marketing.effect.outcome_unknown',
+      payloadRefs: [{ kind: 'intent', id: intent.id }],
+    });
+    ctx.store.auditLog({ tenantId, actorId, action: 'intent.lease_expired', detail: intent.id }, intent.updatedAt);
+  }
+  return { expired: intentIds.length, intentIds };
 }
 
 export interface ReconciliationResult {

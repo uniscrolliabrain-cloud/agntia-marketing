@@ -17,7 +17,7 @@ import {
   CapabilitySchema,
   type Capability,
 } from '@agntia/contracts';
-import type { AdapterRegistry } from '@agntia/adapters';
+import type { AdapterRegistry, SendOutcome } from '@agntia/adapters';
 import {
   acceptBrief,
   addClaim,
@@ -36,7 +36,7 @@ import {
   createMeasurementClaim,
   createService,
   createStore,
-  deliverIntent,
+  expireLeases,
   freezeAudience,
   generateReport,
   ingestConversion,
@@ -47,6 +47,7 @@ import {
   type RateLimiter,
   listObservations,
   pauseCampaign,
+  prepareSend,
   previewAudience,
   previewCampaign,
   previewJourney,
@@ -59,7 +60,9 @@ import {
   registerConnection,
   resolvePrincipal,
   runMmm,
+  sendIntent,
   settleCampaign,
+  settleIntent,
   summariseObservations,
   recordAeoObservation,
   type Ctx,
@@ -154,6 +157,30 @@ export function createApp(deps: AppDeps) {
     await next();
   });
 
+  /**
+   * Portero común de las escrituras: principal verificado, rate limit,
+   * idempotencia y esquema. Se separa de `mutate` porque la entrega del worker
+   * abre varias transacciones cortas y una de ellas no debe cubrir la red.
+   */
+  async function authorize<TBody>(
+    c: Context,
+    capability: Capability,
+    schema: z.ZodType<TBody, z.ZodTypeDef, unknown>,
+  ): Promise<{ principal: Principal; body: TBody; key: string; correlationId: string }> {
+    const principal = await resolveActor(c, capability);
+    let decision;
+    try {
+      decision = await rateLimiter.consume(principal.tenantId, RATE_LIMIT_PER_MINUTE, ctx.now().getTime());
+    } catch {
+      throw new MarketingError('UNAVAILABLE', 'rate_limiter_unavailable');
+    }
+    if (!decision.allowed) throw new MarketingError('RATE_LIMITED', 'tenant_rate_limit');
+    const key = idempotency(c);
+    const raw = await c.req.json().catch(() => ({}));
+    const body = schema.parse(raw);
+    return { principal, body, key, correlationId: correlation(c) };
+  }
+
   /** Escritura: principal verificado + capability + idempotencia + envelope. */
   function mutate<TBody, TResult>(
     capability: Capability,
@@ -161,19 +188,9 @@ export function createApp(deps: AppDeps) {
     handler: (principal: Principal, body: TBody, c: Context) => TResult,
   ) {
     return async (c: Context) => {
-      const principal = await resolveActor(c, capability);
-      let decision;
-      try {
-        decision = await rateLimiter.consume(principal.tenantId, RATE_LIMIT_PER_MINUTE, ctx.now().getTime());
-      } catch {
-        throw new MarketingError('UNAVAILABLE', 'rate_limiter_unavailable');
-      }
-      if (!decision.allowed) throw new MarketingError('RATE_LIMITED', 'tenant_rate_limit');
-      const key = idempotency(c);
-      const raw = await c.req.json().catch(() => ({}));
-      const body = schema.parse(raw);
+      const { principal, body, key, correlationId } = await authorize(c, capability, schema);
       const execute = () =>
-        service.run(principal, capability, { idempotencyKey: key, correlationId: correlation(c), payload: body }, () =>
+        service.run(principal, capability, { idempotencyKey: key, correlationId, payload: body }, () =>
           handler(principal, body, c),
         );
       const result = deps.state ? await deps.state.mutate(principal.tenantId, execute) : await execute();
@@ -189,6 +206,7 @@ export function createApp(deps: AppDeps) {
       return c.json(deps.state ? await deps.state.read(principal.tenantId, compute) : await compute(), 200);
     };
   }
+
 
   // ── Contexto y conexiones (C02, C08) ────────────────────────────────────
   app.get(
@@ -635,24 +653,86 @@ export function createApp(deps: AppDeps) {
 
   // ── Worker interno de sandbox (C14/C22) ─────────────────────────────────
   const WorkerRun = z.object({ workerId: z.string().min(1), limit: z.number().int().min(1).max(100).default(25), provider: z.enum(['email_sandbox']) }).strict();
-  app.post(
-    '/v1/marketing/internal/deliver',
+  /**
+   * Lease máximo antes de declarar un intent incierto. Acota cuánto puede durar
+   * un envío sin que el estado sepa si salió.
+   */
+  const LEASE_TTL_MS = Number(process.env.WORKER_LEASE_TTL_MS ?? 60_000);
+
+  /**
+   * Entrega en dos fases. El cerrojo del tenant serializa el estado, pero no
+   * cubre la red: con el orden anterior (reclamar → enviar → liquidar dentro de
+   * una sola transacción) un proveedor lento retenía el tenant entero durante su
+   * timeout y ningún otro worker podía avanzar.
+   *
+   *   1. reclamo bajo cerrojo: revalidar y marcar `leased` con fence;
+   *   2. envío **sin** transacción abierta;
+   *   3. liquidación bajo cerrojo, sólo si el fence sigue siendo nuestro.
+   *
+   * Un proceso que muere entre 2 y 3 deja el intent `leased`; `expireLeases` lo
+   * pasa a `unknown` con reconciliación obligatoria, nunca a `queued`.
+   */
+  app.post('/v1/marketing/internal/deliver', async (c) => {
     // La entrega la ejecuta un proceso (`worker`), no una persona: por eso tiene
     // capability propia y no la del commit humano que ya autorizó el trabajo.
-    mutate('marketing.delivery.run', WorkerRun, async (p, body) => {
-      const leased = leaseIntents(ctx, p.tenantId, body.workerId, body.limit);
-      const results = [];
-      for (const intent of leased) {
-        results.push(await deliverIntent(ctx, registry, intent.id, intent.fence, body.provider));
-      }
-      for (const campaignId of new Set(leased.map((i) => i.campaignId))) {
-        // Los intents de journey no son campañas: sólo se liquida lo que lo es.
-        const isCampaign = ctx.store.campaigns.some((camp) => camp.tenantId === p.tenantId && camp.id === campaignId);
-        if (isCampaign) settleCampaign(ctx, p.tenantId, campaignId);
-      }
-      return results;
-    }),
-  );
+    const { principal, body, key, correlationId } = await authorize(c, 'marketing.delivery.run', WorkerRun);
+    const tenantId = principal.tenantId;
+    const inTenant = async <T>(fn: () => T | Promise<T>): Promise<T> => {
+      const run = async () => fn();
+      return deps.state ? deps.state.mutate(tenantId, run) : run();
+    };
+
+    let executed = false;
+    const result = await service.run(
+      principal,
+      'marketing.delivery.run',
+      { idempotencyKey: key, correlationId, payload: body },
+      async () => {
+        executed = true;
+
+        // Fase 1 · reclamo corto.
+        const claimed = await inTenant(() => {
+          expireLeases(ctx, tenantId, LEASE_TTL_MS, body.workerId);
+          return leaseIntents(ctx, tenantId, body.workerId, body.limit).map((intent) => ({
+            intentId: intent.id,
+            fence: intent.fence,
+            campaignId: intent.campaignId,
+            request: prepareSend(intent),
+          }));
+        });
+
+        // Fase 2 · envío, sin ninguna transacción abierta.
+        const sent: Array<{ intentId: string; fence: number; outcome: SendOutcome }> = [];
+        for (const item of claimed) {
+          sent.push({ intentId: item.intentId, fence: item.fence, outcome: await sendIntent(registry, body.provider, item.request) });
+        }
+
+        // Fase 3 · liquidación con fence.
+        return inTenant(() => {
+          const results = sent.map((item) => {
+            const settled = settleIntent(ctx, tenantId, item.intentId, item.fence, item.outcome, body.provider);
+            // Un lease que ya no es nuestro no reescribe nada: se informa como
+            // incierto para que el operador lo reconcilie con evidencia.
+            return settled.applied
+              ? { intentId: settled.intentId, state: settled.state, remoteId: settled.remoteId, code: settled.code }
+              : { intentId: settled.intentId, state: 'unknown' as const, remoteId: null, code: settled.code };
+          });
+          for (const campaignId of new Set(claimed.map((i) => i.campaignId))) {
+            // Los intents de journey no son campañas: sólo se liquida lo que lo es.
+            const isCampaign = ctx.store.campaigns.some((camp) => camp.tenantId === tenantId && camp.id === campaignId);
+            if (isCampaign) settleCampaign(ctx, tenantId, campaignId);
+          }
+          return results;
+        });
+      },
+    );
+
+    // La fase 3 cerró antes de que `service.run` registre la idempotencia: una
+    // escritura vacía la persiste sin volver a retener nada.
+    if (executed && deps.state) await deps.state.mutate(tenantId, async () => undefined);
+
+    return c.json(result, 200);
+  });
 
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', detail: 'route_not_found', correlationId: `corr_${crypto.randomUUID().slice(0, 12)}` } }, 404));
 
